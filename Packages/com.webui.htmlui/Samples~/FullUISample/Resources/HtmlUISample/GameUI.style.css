@@ -1,0 +1,293 @@
+/* Orbital Salvage - sample game UI ---------------------------------------------------------- */
+
+#app {
+  --bg: rgba(10, 14, 24, 0.82);
+  --bg-solid: #0d1220;
+  --panel: rgba(18, 24, 40, 0.92);
+  --panel-border: rgba(120, 160, 255, 0.28);
+  --text: #e8eefc;
+  --muted: #9fb0d0;
+  --accent: #5cc8ff;
+  --accent-2: #ffd166;
+  --danger: #ff6b6b;
+  --ok: #6ee7a0;
+  --focus: #ffd166;
+  --radius: 12px;
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  position: absolute;
+  inset: 0;
+  color: var(--text);
+  font: 15px/1.45 system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  /* Empty space lets clicks through to Unity; interactive regions opt back in below. */
+  pointer-events: none;
+}
+
+#app .topbar,
+#app .card,
+#app .hud-top,
+#app .hud-bottom,
+#app .dialog,
+#app .toasts {
+  pointer-events: auto;
+}
+
+#app *,
+#app *::before,
+#app *::after { box-sizing: border-box; }
+
+#app :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+#app ::selection { background: var(--accent); color: #041018; }
+
+/* Themes ----------------------------------------------------------------------------------- */
+
+#app.theme-light {
+  --bg: rgba(240, 244, 252, 0.88);
+  --bg-solid: #f4f7ff;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-border: rgba(30, 60, 120, 0.25);
+  --text: #101828;
+  --muted: #475467;
+  --accent: #0b6bcb;
+  --accent-2: #b25e00;
+  --danger: #c62828;
+  --ok: #1b7f46;
+  --focus: #0b6bcb;
+}
+
+#app.theme-contrast {
+  --bg: #000;
+  --bg-solid: #000;
+  --panel: #000;
+  --panel-border: #fff;
+  --text: #fff;
+  --muted: #ffff00;
+  --accent: #00e5ff;
+  --accent-2: #ffff00;
+  --danger: #ff5555;
+  --ok: #55ff55;
+  --focus: #ffff00;
+  --shadow: none;
+}
+
+@media (forced-colors: active) {
+  #app .btn, #app .card, #app .topbar { border: 1px solid ButtonText; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app * { transition: none !important; animation: none !important; }
+}
+
+/* Skip link -------------------------------------------------------------------------------- */
+
+#app .skip-link {
+  position: absolute; left: 8px; top: -60px; z-index: 50;
+  background: var(--accent); color: #041018; padding: 8px 12px; border-radius: 8px; font-weight: 600;
+  pointer-events: auto;
+}
+#app .skip-link:focus { top: 8px; }
+
+/* Top bar ---------------------------------------------------------------------------------- */
+
+#app .topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  backdrop-filter: blur(6px);
+}
+#app .brand { margin: 0; font-size: 18px; letter-spacing: 0.04em; white-space: nowrap; }
+#app .brand span { color: var(--accent); }
+#app .nav { display: flex; gap: 6px; flex-wrap: wrap; }
+#app .nav-btn {
+  background: transparent; color: var(--text); border: 1px solid transparent;
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit;
+}
+#app .nav-btn:hover { border-color: var(--panel-border); }
+#app .nav-btn[aria-current="page"] { background: var(--accent); color: #041018; font-weight: 600; }
+#app .status { margin: 0 0 0 auto; color: var(--muted); font-size: 12px; text-align: right; }
+
+/* Screens ---------------------------------------------------------------------------------- */
+
+#app .screens { position: relative; flex: 1; min-height: 0; }
+#app .screen { position: absolute; inset: 0; }
+#app .screen[hidden] { display: none; }
+#app .screen-center { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+
+#app .card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
+}
+#app .card.wide { width: min(820px, 100%); }
+#app h2 { margin: 0 0 12px; font-size: 24px; }
+#app .lead { color: var(--muted); margin: 0 0 20px; }
+#app .muted { color: var(--muted); }
+#app .stack { display: grid; gap: 10px; margin-bottom: 18px; }
+#app .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+#app .row.end { justify-content: flex-end; margin-top: 18px; }
+
+#app kbd {
+  font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid var(--panel-border);
+  border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px;
+}
+
+/* Buttons ---------------------------------------------------------------------------------- */
+
+#app .btn {
+  font: inherit; font-weight: 600;
+  color: var(--text); background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border); border-radius: 10px;
+  padding: 10px 16px; cursor: pointer;
+  transition: transform 80ms ease, background 120ms ease;
+}
+#app .btn:hover { background: rgba(255, 255, 255, 0.16); }
+#app .btn:active { transform: translateY(1px); }
+#app .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#app .btn.primary { background: var(--accent); color: #041018; border-color: transparent; }
+#app .btn.primary:hover { filter: brightness(1.1); }
+#app .btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+#app .btn small { font-weight: 400; opacity: 0.8; }
+
+#app code { font: 13px ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
+
+/* Tooltips (WAI-ARIA tooltip pattern) ------------------------------------------------------
+   The trigger carries aria-describedby -> the tooltip's id, so screen readers read the tooltip as the
+   button's description. Shown on hover AND keyboard focus; Escape adds .tip-dismissed (see GameUIController). */
+
+#app .tip-wrap { position: relative; display: inline-block; }
+#app .stack .tip-wrap { display: grid; }
+#app .tip {
+  position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translate(-50%, 4px);
+  width: max-content; max-width: 280px;
+  background: var(--bg-solid); color: var(--text);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 8px 10px; font-size: 13px; line-height: 1.35; font-weight: 400; text-align: left;
+  box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms;
+  z-index: 20;
+}
+#app .tip::after {
+  content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: var(--accent);
+}
+#app .tip-wrap.tip-below .tip { bottom: auto; top: calc(100% + 10px); transform: translate(-50%, -4px); }
+#app .tip-wrap.tip-below .tip::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--accent); }
+#app .tip-wrap:hover .tip,
+#app .tip-wrap:focus-within .tip { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+#app .tip-wrap.tip-dismissed .tip { opacity: 0 !important; visibility: hidden !important; }
+#app .nav .tip { left: 0; transform: translate(0, -4px); }
+#app .nav .tip-wrap:hover .tip, #app .nav .tip-wrap:focus-within .tip { transform: translate(0, 0); }
+#app .nav .tip::after { left: 24px; transform: none; }
+
+#app .details { margin-top: 6px; color: var(--muted); }
+#app .details summary { cursor: pointer; color: var(--text); }
+
+/* HUD -------------------------------------------------------------------------------------- */
+
+#app .screen-hud { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; }
+#app .hud-top {
+  display: flex; gap: 12px; flex-wrap: wrap; align-self: flex-start;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius);
+  padding: 10px 14px;
+}
+#app .stat { display: grid; min-width: 96px; }
+#app .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+#app .stat output { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+#app .hud-bottom {
+  display: flex; gap: 24px; align-items: end; flex-wrap: wrap; align-self: flex-start;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius);
+  padding: 12px 16px; width: min(640px, 100%);
+}
+#app .bars { flex: 1; min-width: 240px; display: grid; gap: 4px; }
+#app .bar { font-size: 12px; color: var(--muted); }
+#app progress, #app meter { width: 100%; height: 14px; }
+#app .actions { display: flex; gap: 10px; }
+#app .hint { position: absolute; left: 16px; bottom: 96px; margin: 0; color: var(--muted); font-size: 13px; text-shadow: 0 1px 3px #000; }
+
+/* Inventory -------------------------------------------------------------------------------- */
+
+#app .toolbar { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 14px; }
+#app .toolbar label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+#app .inv-layout { display: grid; grid-template-columns: 1fr 240px; gap: 16px; }
+#app .grid {
+  list-style: none; margin: 0; padding: 4px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px;
+  max-height: 320px; overflow: auto;
+}
+#app .item {
+  display: grid; justify-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--panel-border);
+  font-size: 12px; text-align: center;
+}
+#app .item .icon { font-size: 26px; }
+#app .item .qty { color: var(--muted); }
+#app .item[aria-selected="true"] { background: var(--accent); color: #041018; }
+#app .item[aria-selected="true"] .qty { color: #04101899; }
+#app .item[hidden] { display: none; }
+#app .detail { border-left: 1px solid var(--panel-border); padding-left: 16px; font-size: 14px; }
+#app .detail h3 { margin: 0 0 6px; }
+
+/* Settings --------------------------------------------------------------------------------- */
+
+#app .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-border); margin-bottom: 16px; }
+#app [role="tab"] {
+  font: inherit; color: var(--muted); background: transparent; border: 0; border-bottom: 3px solid transparent;
+  padding: 8px 14px; cursor: pointer; margin-bottom: -1px;
+}
+#app [role="tab"][aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+#app .tabpanel { display: grid; gap: 14px; }
+#app .tabpanel[hidden] { display: none; }
+#app .field { display: grid; grid-template-columns: 160px 1fr 48px; gap: 12px; align-items: center; }
+#app .field label { color: var(--muted); }
+#app .field output { text-align: right; font-variant-numeric: tabular-nums; }
+#app input[type="range"] { width: 100%; accent-color: var(--accent); }
+#app input[type="checkbox"], #app input[type="radio"] { accent-color: var(--accent); width: 18px; height: 18px; }
+#app input[type="text"], #app input[type="number"], #app input[type="search"], #app select {
+  font: inherit; color: var(--text); background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 10px; min-width: 0;
+}
+#app.theme-light input, #app.theme-light select { background: #fff; }
+#app fieldset { border: 1px solid var(--panel-border); border-radius: 8px; display: flex; gap: 16px; flex-wrap: wrap; }
+#app legend { color: var(--muted); padding: 0 6px; }
+#app .check { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+/* Dialogs ---------------------------------------------------------------------------------- */
+
+#app .dialog {
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--panel-border); border-radius: var(--radius);
+  padding: 24px 28px; width: min(480px, 90vw); box-shadow: var(--shadow);
+}
+#app .dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+#app .credits { padding-left: 18px; }
+#app .credits li { margin-bottom: 6px; }
+
+/* Toasts ----------------------------------------------------------------------------------- */
+
+#app .toasts { position: absolute; right: 16px; top: 64px; display: grid; gap: 8px; width: min(320px, 90vw); }
+#app .toast {
+  background: var(--panel); border: 1px solid var(--panel-border); border-left: 4px solid var(--accent);
+  border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow);
+  animation: toast-in 180ms ease-out;
+}
+#app .toast.ok { border-left-color: var(--ok); }
+#app .toast.warn { border-left-color: var(--accent-2); }
+#app .toast.danger { border-left-color: var(--danger); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
