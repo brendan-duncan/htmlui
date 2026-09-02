@@ -104,16 +104,38 @@ var HtmlUILibrary = {
       return null;
     },
 
+    // Unity's WebGPU glue keeps its GPU objects in a JS side table (`wgpu`) and passes around integer
+    // handles into it. Anything we get from the engine may therefore be a handle rather than the object:
+    // Module.WebGPU.device is a GPUDevice up to 6000.7.0a4 and a handle from 6000.7.0a5 on (see
+    // PlatformDependent/WebGL/js/WebGPU.js, JS_WebGPU_Setup). Resolve both forms.
+    // `wgpu` only exists in WebGPU-enabled players, so it is probed with typeof rather than declared
+    // as a jslib dependency, which would fail to link in a WebGL2-only build.
+    gpuObject: function (v) {
+      if (typeof v === 'number') {
+        if (!v || typeof wgpu === 'undefined' || !wgpu) return null;
+        v = wgpu[v];
+      }
+      return v || null;
+    },
+
     getGPUDevice: function () {
       try {
-        if (Module['WebGPU'] && Module['WebGPU']['device']) return Module['WebGPU']['device'];
-        if (Module['WebGPU'] && typeof Module['WebGPU']['getDevice'] === 'function') return Module['WebGPU']['getDevice']();
-        if (typeof WebGPU !== 'undefined' && WebGPU['mgrDevice'] && typeof WebGPU['mgrDevice'].get === 'function') {
-          var d = WebGPU['mgrDevice'].get(1);
-          if (d) return d;
+        var d = null;
+        if (Module['WebGPU']) {
+          if (typeof Module['WebGPU']['getDevice'] === 'function') d = HUI.gpuObject(Module['WebGPU']['getDevice']());
+          if (!d) d = HUI.gpuObject(Module['WebGPU']['device']);
         }
-        if (typeof wgpu !== 'undefined' && typeof GPUDevice !== 'undefined') {
-          for (var k in wgpu) { if (wgpu[k] instanceof GPUDevice) return wgpu[k]; }
+        // A device with no queue is not a GPUDevice; keep looking rather than failing every upload later.
+        if (d && d.queue) return d;
+        if (typeof WebGPU !== 'undefined' && WebGPU['mgrDevice'] && typeof WebGPU['mgrDevice'].get === 'function') {
+          d = WebGPU['mgrDevice'].get(1);
+          if (d && d.queue) return d;
+        }
+        if (typeof wgpu !== 'undefined' && wgpu) {
+          for (var k in wgpu) {
+            var o = wgpu[k];
+            if (o && o.queue && (typeof GPUDevice === 'undefined' || o instanceof GPUDevice)) return o;
+          }
         }
       } catch (e) { HUI.warnOnce('gpudev', 'Failed to look up the WebGPU device: ' + e); }
       return null;
@@ -121,9 +143,10 @@ var HtmlUILibrary = {
 
     getGPUTexture: function (ptr) {
       try {
-        if (typeof wgpu !== 'undefined' && wgpu[ptr] && (typeof GPUTexture === 'undefined' || wgpu[ptr] instanceof GPUTexture)) return wgpu[ptr];
+        var t = HUI.gpuObject(ptr);
+        if (t && (typeof GPUTexture === 'undefined' || t instanceof GPUTexture)) return t;
         if (Module['WebGPU'] && Module['WebGPU']['mgrTexture'] && typeof Module['WebGPU']['mgrTexture'].get === 'function') {
-          var t = Module['WebGPU']['mgrTexture'].get(ptr);
+          t = Module['WebGPU']['mgrTexture'].get(ptr);
           if (t) return t;
         }
         if (typeof WebGPU !== 'undefined' && WebGPU['mgrTexture'] && typeof WebGPU['mgrTexture'].get === 'function') {
@@ -665,6 +688,11 @@ var HtmlUILibrary = {
         return false;
       }
       var q = device.queue;
+      if (!q) {
+        HUI.warnOnce('gpuqueue', 'The object the engine reported as its WebGPU device has no queue; ' +
+          'HTML panels cannot be composited into the frame.');
+        return false;
+      }
       var RA = 16, CD = 2, CS = 4, TB = 4;
       if (typeof GPUTextureUsage !== 'undefined') { RA = GPUTextureUsage.RENDER_ATTACHMENT; CD = GPUTextureUsage.COPY_DST; CS = GPUTextureUsage.COPY_SRC; TB = GPUTextureUsage.TEXTURE_BINDING; }
 
