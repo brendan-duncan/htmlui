@@ -15,8 +15,12 @@ namespace WebUI.Html.Editor
             if (!Application.isPlaying)
             {
                 EditorGUILayout.HelpBox(
-                    "HTML documents render in WebGL/WebGPU builds only. In the Editor a placeholder texture marks the surface.\n" +
-                    "Chrome 148+ with HTML-in-Canvas (chrome://flags/#canvas-draw-element or an Origin Trial token) composites the DOM into the texture; other browsers get a DOM overlay.",
+                    HtmlEditorPreview.Enabled
+                        ? "Enter play mode to preview this document in Chrome (Window > HTML UI). Layout, styling and input are real; " +
+                          "accessibility and HTML-in-Canvas compositing only exist in a web build.\n" +
+                          "Chrome 148+ with chrome://flags/#canvas-draw-element or an Origin Trial token composites the DOM into the texture; " +
+                          "other browsers get a DOM overlay."
+                        : "The Editor preview is off, so documents render a placeholder here. Turn it on under Window > HTML UI, or build for WebGL/WebGPU.",
                     MessageType.Info);
                 return;
             }
@@ -26,6 +30,7 @@ namespace WebUI.Html.Editor
             var runtime = HtmlRuntime.HasInstance ? HtmlRuntime.Instance : null;
             EditorGUILayout.LabelField("Runtime", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Render mode", mode.ToString());
+            EditorGUILayout.LabelField("Editor preview", HtmlEditorPreview.Status);
             EditorGUILayout.LabelField("Created", doc.IsCreated ? "yes" : "no");
             EditorGUILayout.LabelField("Texture", doc.Texture != null ? $"{doc.TextureSize.x} x {doc.TextureSize.y}" : "none");
             if (runtime != null)

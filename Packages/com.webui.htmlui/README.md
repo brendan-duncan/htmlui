@@ -103,6 +103,39 @@ the two-argument `canvas.getElementTransform()` that Chrome's WebGL/WebGPU demos
 geometry plus a CSS `matrix3d`). `layoutsubtree` lays panels out with static positioning, so any CSS transform the
 bridge applies also cancels the panel's layout offset.
 
+## Editor preview
+
+Play mode in the Editor renders documents through a real Chrome, driven over the DevTools Protocol. Each document
+gets its own browser target sized to the document; DevTools screencasts it and each frame becomes the
+`HtmlDocument.Texture` that surfaces sample, so screen and world surfaces both work. Pointer input is projected
+back through the document's pixel-to-clip matrix, so clicking a button in the Game view produces the same
+`HtmlEvent` a build would.
+
+It is on by default and needs Chrome on PATH or in a standard install location; set `HTMLUI_CHROME` to override.
+Toggles live under **Window > HTML UI**:
+
+| Menu item | Effect |
+| --- | --- |
+| Editor Preview (Chrome) | Turns the preview off; documents fall back to the placeholder texture. |
+| Run Chrome Headless | Off runs a visible (off-screen) browser window, which is useful when debugging the page. |
+| Log Browser Console | Forwards the page's `console` output to the Unity console. |
+| Flip Preview Vertically | Corrects the frame orientation if it comes out upside down on your graphics API. |
+
+What the preview gives you is genuine, because it is genuinely Chrome: layout, CSS, fonts, script behaviour and
+event payloads. What it cannot give you is the part that only exists in a web build — accessibility (screen
+readers, find-in-page, text selection), IME, and HTML-in-Canvas compositing itself. A document that looks and
+behaves correctly in the Game view still has to be checked in a build.
+
+`Q`, `QAll` and the whole `HtmlElement` API work. A handle is a description of how to find the element rather
+than a reference to it, so `Q()` costs nothing; the browser resolves it per operation. Writes (text, attributes,
+classes, properties, `InnerHtml`, `ShowModal`, `Remove`) are queued and sent as one batch per document per frame,
+so a per-frame HUD update is a single message. Reads (`Value`, `GetAttribute`, `Checked`, `Bounds`, `QAll`) block
+on a round trip, which is a fraction of a millisecond to a local browser but is worth keeping out of `Update`.
+
+Not yet wired up in the preview: keyboard input (so text fields cannot be typed into from the Game view),
+pointer mode and `BlockUnityInput` (Unity receives the same clicks the document does), and mipmap parity with
+the WebGL path.
+
 ## Limitations
 
 * HTML-in-Canvas is experimental: cross-origin iframes are not drawn, and some API names differ between Chrome
@@ -113,4 +146,5 @@ bridge applies also cancels the panel's layout offset.
   through `wgpu[ptr]` / `Module.WebGPU` and copies through a staging texture when the Unity texture lacks
   `RENDER_ATTACHMENT | COPY_DST` usage. If lookup fails it logs once and the panel stays blank — switch to
   WebGL2 or set `HtmlRuntime.ForceOverlay = true`.
-* Everything renders only in Web player builds. The Editor shows a translucent placeholder.
+* Builds render only on the Web platform. In the Editor, play mode uses the Chrome preview above; with the
+  preview off, documents show a translucent placeholder.

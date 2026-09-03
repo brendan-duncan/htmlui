@@ -137,7 +137,11 @@ namespace WebUI.Html
             int mode = HtmlNative.HtmlUI_Init(backend, linear, ForceOverlay ? 1 : 0, DebugLogging ? 1 : 0, s_callback);
             Mode = HtmlNative.Available ? (HtmlRenderMode)mode : HtmlRenderMode.Unavailable;
 
-            if (HtmlNative.Available)
+            if (HtmlBackend.Current != null)
+            {
+                Debug.Log($"[HtmlUI] mode={Mode} backend={HtmlBackend.Current.GetType().Name} (Editor preview: layout and input are real, accessibility and HTML-in-Canvas compositing are not — test those in a web build).");
+            }
+            else if (HtmlNative.Available)
             {
                 var json = HtmlNative.TakeString(HtmlNative.HtmlUI_GetFeatures());
                 try { Features = JsonUtility.FromJson<HtmlFeatures>(json) ?? new HtmlFeatures(); }
@@ -150,6 +154,15 @@ namespace WebUI.Html
                 Debug.Log("[HtmlUI] Not a web player: HTML documents will render placeholders only. Build for WebGL/WebGPU to see the UI.");
             }
             RefreshCanvasInfo();
+        }
+
+        /// <summary>Routes a DOM event payload from a bridge to the document that owns the panel.</summary>
+        internal static void DispatchToPanel(int panel, string json)
+        {
+            if (s_instance == null) return;
+            if (!s_instance._documents.TryGetValue(panel, out var doc) || doc == null) return;
+            try { doc.DispatchNative(json); }
+            catch (Exception ex) { Debug.LogException(ex); }
         }
 
         private void RefreshCanvasInfo()
@@ -167,10 +180,7 @@ namespace WebUI.Html
         private static void OnNativeEvent(int panel, IntPtr json)
         {
             if (s_instance == null) return;
-            if (!s_instance._documents.TryGetValue(panel, out var doc) || doc == null) return;
-            string payload = HtmlNative.ReadUtf8(json);
-            try { doc.DispatchNative(payload); }
-            catch (Exception ex) { Debug.LogException(ex); }
+            DispatchToPanel(panel, HtmlNative.ReadUtf8(json));
         }
 
         private void LateUpdate()

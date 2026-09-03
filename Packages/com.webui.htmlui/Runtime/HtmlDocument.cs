@@ -56,6 +56,8 @@ namespace WebUI.Html
         private int _panel;
         private bool _created;
         private Texture _texture;
+        // False when the texture belongs to an IHtmlBackend (Editor preview) and must not be destroyed here.
+        private bool _ownsTexture = true;
         private Vector2Int _textureSize;
         private readonly float[] _matrix = new float[16];
         private readonly int[] _wh = new int[2];
@@ -399,6 +401,7 @@ namespace WebUI.Html
         private void CreateTexture()
         {
             ReleaseTexture();
+            _ownsTexture = true;
             var runtime = HtmlRuntime.Instance;
 
             if (!HtmlNative.Available)
@@ -411,7 +414,13 @@ namespace WebUI.Html
                 HtmlNative.HtmlUI_PanelGetTextureSize(_panel, _wh);
                 _textureSize = new Vector2Int(Mathf.Max(1, _wh[0]), Mathf.Max(1, _wh[1]));
 
-                if (runtime.IsWebGPU)
+                if (HtmlBackend.Current != null)
+                {
+                    // The backend owns and refreshes the texture; it may not exist yet (see AfterBridgeUpdate).
+                    _ownsTexture = false;
+                    _texture = HtmlBackend.Current.PanelGetTexture(_panel);
+                }
+                else if (runtime.IsWebGPU)
                 {
                     // Unity owns the texture; the browser draws the element into it.
                     var rt = new RenderTexture(_textureSize.x, _textureSize.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
@@ -456,7 +465,25 @@ namespace WebUI.Html
         /// <summary>Called by <see cref="HtmlRuntime"/> right after the bridge uploaded textures for this frame.</summary>
         internal void AfterBridgeUpdate()
         {
-            if (!_created || !mipmaps) return;
+            if (!_created) return;
+
+            var backend = HtmlBackend.Current;
+            if (backend != null)
+            {
+                // The backend creates its texture once the browser delivers the first frame, and replaces it on resize.
+                var tex = backend.PanelGetTexture(_panel);
+                if (!ReferenceEquals(tex, _texture))
+                {
+                    _texture = tex;
+                    _ownsTexture = false;
+                    backend.PanelGetTextureSize(_panel, _wh);
+                    _textureSize = new Vector2Int(Mathf.Max(1, _wh[0]), Mathf.Max(1, _wh[1]));
+                    TextureChanged?.Invoke(this);
+                }
+                return;
+            }
+
+            if (!mipmaps) return;
             if (_texture is RenderTexture rt && rt.useMipMap && HtmlNative.HtmlUI_PanelTakeUpdated(_panel) != 0)
                 rt.GenerateMips();
         }
@@ -464,8 +491,11 @@ namespace WebUI.Html
         private void ReleaseTexture()
         {
             if (_texture == null) return;
-            if (_texture is RenderTexture rt) rt.Release();
-            Destroy(_texture);
+            if (_ownsTexture)
+            {
+                if (_texture is RenderTexture rt) rt.Release();
+                Destroy(_texture);
+            }
             _texture = null;
         }
 
