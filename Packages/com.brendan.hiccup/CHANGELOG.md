@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- The samples are no longer shipped inside the package. They live only under `Assets/Samples/Hiccup` in the
+  Hiccup project, and `package.json` no longer lists them for the Package Manager.
 - Renamed the package to **Hiccup** (HTML-in-Canvas Components Unity Package). Everything that carried the old
   `HtmlUI` name moved with it: package id `com.brendan.hiccup`, namespaces `Hiccup`, `Hiccup.Editor`,
   `Hiccup.Editor.Cdp` and `Hiccup.Samples`, assemblies `Hiccup` and `Hiccup.Editor`, the `Hiccup.jslib` bridge

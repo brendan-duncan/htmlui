@@ -37,8 +37,8 @@ interactive, just not composited into the Unity frame). The Editor shows placeho
 2. Optional but recommended: set **Project Settings ▸ Player ▸ Resolution and Presentation ▸ WebGL Template** to
    `Hiccup` (copied to `Assets/WebGLTemplates/Hiccup`). It adds the Origin Trial `<meta>` tag placeholder and a
    full-window canvas with `layoutsubtree`. The bridge sets the attribute at runtime anyway.
-3. Import the **Full UI Sample** (a complete game UI) or **Three.js Desk** (a three.js page on a monitor, in an
-   iframe) from the Package Manager and build it, or create your own content with
+3. Open the **Full UI Sample** (a complete game UI) or **Three.js Desk** (a three.js page on a monitor, in an
+   iframe) from `Assets/Samples/Hiccup` in the Hiccup project and build it, or create your own content with
    **Assets ▸ Create ▸ Hiccup ▸ HTML Document** / **Style Sheet** and wire it up:
 
 ```csharp

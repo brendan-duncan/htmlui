@@ -53,7 +53,7 @@ It carries a full-window canvas and a placeholder `<meta http-equiv="origin-tria
 there. Skipping this is fine for flag-based local testing; the bridge sets the canvas attributes it needs at
 runtime either way.
 
-**The sample.** Import **Full UI Sample** from the Package Manager. It is a complete game UI — menu, settings
+**The sample.** Open **Full UI Sample** from `Assets/Samples/Hiccup` in the Hiccup project. It is a complete game UI — menu, settings
 form with ARIA tabs, inventory listbox, HUD, `<dialog>` modals, toasts, themes, and an interactive console on a
 3D quad — and it is the fastest way to see what the package expects of you.
 

@@ -16,17 +16,5 @@
   ],
   "author": {
     "name": "Brendan Duncan"
-  },
-  "samples": [
-    {
-      "displayName": "Hiccup",
-      "description": "Main menu, settings form with tabs, HUD, inventory grid, modal dialog, toasts, screen-reader announcements and an interactive world-space panel on a 3D quad.",
-      "path": "Samples~/FullUISample"
-    },
-    {
-      "displayName": "Hiccup",
-      "description": "A monitor on a desk showing a three.js scene: a same-origin iframe painted by HTML-in-Canvas into a world-space panel, driven by a mouse you drag around the desk.",
-      "path": "Samples~/ThreeJsDesk"
-    }
-  ]
+  }
 }
