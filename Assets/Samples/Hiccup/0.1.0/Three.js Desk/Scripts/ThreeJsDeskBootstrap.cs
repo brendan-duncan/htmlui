@@ -1,5 +1,6 @@
 using UnityEngine;
 
+
 namespace Hiccup.Samples
 {
     /// <summary>

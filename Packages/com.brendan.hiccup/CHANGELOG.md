@@ -38,6 +38,16 @@
 - **Three.js Desk** sample: a monitor on a desk whose screen is a same-origin `<iframe>` (via `srcdoc`) running
   a three.js scene, painted by HTML-in-Canvas into a world-space panel. A mouse on the desk, dragged with the
   real one, drives the page's cursor through batched `data-*` attribute writes on the frame element.
+- Three.js Desk: the three.js scene now has a monitor of its own showing the published Unity build
+  (`https://brendan-duncan.github.io/hiccup/build/`) in a nested `<iframe>`, painted by HTML-in-Canvas into a
+  hidden host canvas that three.js samples as a texture (a `layoutsubtree` canvas is excluded from enclosing
+  snapshots, so the WebGL canvas itself must stay plain). The build is fetched and loaded through `srcdoc` so the frame is same-origin
+  from any host; a CSS3D overlay is the fallback where the API is missing. The desk mouse is forwarded into the
+  nested build as synthetic pointer events.
+- Three.js Desk: right-drag on the pad slides the desk mouse without pressing its button, so the cursor can hover
+  and move between targets; left-drag is the press-and-drag it always was.
+- Editor preview: Chrome is launched with `--enable-features=CanvasDrawElement`, so pages that use
+  HTML-in-Canvas themselves have the API in the preview.
 - Overlay mode is depth-composited when the canvas has an alpha channel. The overlay is placed behind the
   canvas, `HtmlWorldSurface` and `HtmlScreenSurface` switch to cutout materials (`Hiccup/Overlay Cutout`,
   `Hiccup/UI Overlay Cutout`) that write depth and alpha 0, and the bridge routes pointer events to the DOM while

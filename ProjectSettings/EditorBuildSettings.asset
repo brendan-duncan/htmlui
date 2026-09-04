@@ -5,10 +5,10 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Samples/Hiccup/0.1.0/Full UI Sample/Scenes/HiccupSample.unity
     guid: e2c520ef1bb9ed1448c8509645e24d84
-  - enabled: 0
+  - enabled: 1
     path: Assets/Samples/Hiccup/0.1.0/Three.js Desk/Scenes/ThreeJsDesk.unity
     guid: c4d2e9a1b7f34e0f9a6b2c8d1e5f7a93
   m_configObjects:
