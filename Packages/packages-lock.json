@@ -192,8 +192,8 @@
       },
       "url": "https://packages.unity.com"
     },
-    "com.webui.htmlui": {
-      "version": "file:com.webui.htmlui",
+    "com.brendan.htmlui": {
+      "version": "file:com.brendan.htmlui",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}

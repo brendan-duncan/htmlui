@@ -112,7 +112,7 @@ namespace HtmlUI.Samples
             worldDoc.Html = Resources.Load<TextAsset>("HtmlUISample/WorldPanel");
             worldDoc.StyleSheets = new[] { Resources.Load<TextAsset>("HtmlUISample/WorldPanel.style") };
             worldDoc.Size = new Vector2Int(576, 400);
-            worldDoc.ResolutionScale = 3f;   // supersample: the quad is viewed at an angle, mips + aniso do the rest
+            worldDoc.ResolutionScale = 2f;   // supersample: the quad is viewed at an angle, mips + aniso do the rest
             worldDoc.Mipmaps = true;
             worldDoc.PointerMode = HtmlPointerMode.Panel;
             var worldSurface = quad.AddComponent<HtmlWorldSurface>();

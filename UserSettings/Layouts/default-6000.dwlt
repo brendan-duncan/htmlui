@@ -62,8 +62,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEditor.dll::UnityEditor.ContainerWindow
   m_PixelRect:
     serializedVersion: 2
-    x: 1193
-    y: 918
+    x: 1615
+    y: 910
     width: 725
     height: 526
   m_ShowMode: 0
@@ -91,7 +91,7 @@ MonoBehaviour:
     width: 1918
     height: 1500
   m_ShowMode: 4
-  m_Title: Hierarchy
+  m_Title: Game
   m_RootView: {fileID: 17}
   m_MinSize: {x: 875, y: 300}
   m_MaxSize: {x: 10000, y: 10000}
@@ -145,7 +145,7 @@ MonoBehaviour:
   m_MinSize: {x: 280, y: 276}
   m_MaxSize: {x: 4000, y: 4026}
   vertical: 0
-  controlID: 533
+  controlID: 44
   draggingID: 0
 --- !u!114 &7
 MonoBehaviour:
@@ -196,7 +196,7 @@ MonoBehaviour:
   m_MinSize: {x: 310, y: 226}
   m_MaxSize: {x: 4000, y: 4026}
   vertical: 0
-  controlID: 309
+  controlID: 102
   draggingID: 0
 --- !u!114 &9
 MonoBehaviour:
@@ -247,7 +247,7 @@ MonoBehaviour:
   m_MinSize: {x: 725, y: 426}
   m_MaxSize: {x: 4000, y: 4026}
   vertical: 0
-  controlID: 32
+  controlID: 34
   draggingID: 0
 --- !u!114 &11
 MonoBehaviour:
@@ -299,7 +299,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 56}
   m_MaxSize: {x: 16192, y: 8096}
   vertical: 0
-  controlID: 41
+  controlID: 164
   draggingID: 0
 --- !u!114 &13
 MonoBehaviour:
@@ -325,7 +325,7 @@ MonoBehaviour:
   m_MinSize: {x: 300, y: 112}
   m_MaxSize: {x: 24288, y: 16192}
   vertical: 0
-  controlID: 159
+  controlID: 273
   draggingID: 0
 --- !u!114 &14
 MonoBehaviour:
@@ -500,7 +500,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 112}
   m_MaxSize: {x: 16192, y: 16192}
   vertical: 1
-  controlID: 160
+  controlID: 274
   draggingID: 0
 --- !u!114 &21
 MonoBehaviour:
@@ -526,7 +526,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 56}
   m_MaxSize: {x: 16192, y: 8096}
   vertical: 0
-  controlID: 161
+  controlID: 275
   draggingID: 0
 --- !u!114 &22
 MonoBehaviour:
@@ -576,8 +576,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Package Manager\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 26
+    x: 1949
+    y: 745
     width: 1050
     height: 774
   m_SerializedDataModeController:
@@ -616,8 +616,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Project Settings\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 26
+    x: 1981
+    y: 201
     width: 789
     height: 1008
   m_SerializedDataModeController:
@@ -636,14 +636,14 @@ MonoBehaviour:
     m_DynamicPanelBehavior: 0
     m_DynamicPanelBehaviorModified: 0
   m_PosLeft: {x: 0, y: 0}
-  m_PosRight: {x: 0, y: 0}
+  m_PosRight: {x: 0, y: 1078}
   m_Scope: 1
   m_SplitterPos: 196
   m_SearchText: 
   m_TreeViewState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: d7dddea2i
-    m_LastClickedID: -1562452521
+    m_SelectedIDs: 4dcf9b58i
+    m_LastClickedID: 1486606157
     m_ExpandedIDs: a01a5fa667ea4eb1000000007f0eae07e594f01a02c7817fi
     m_RenameOverlay:
       m_UserAcceptedRename: 0
@@ -684,8 +684,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Build Profiles\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 26
+    x: 1615
+    y: 910
     width: 725
     height: 500
   m_SerializedDataModeController:
@@ -724,8 +724,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "UnityEditor.MainToolbarWindow\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 0
+    x: 1
+    y: 51
     width: 1918
     height: 36
   m_SerializedDataModeController:
@@ -1006,8 +1006,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Project\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 24
+    x: 1
+    y: 944
     width: 677
     height: 561
   m_SerializedDataModeController:
@@ -1036,7 +1036,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 0
     m_Folders:
-    - Assets/Settings
+    - Assets/Samples/HTML UI (HTML-in-Canvas)/0.1.0/Full UI Sample/Scenes
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -1047,7 +1047,7 @@ MonoBehaviour:
   m_ViewMode: 1
   m_StartGridSize: 16
   m_LastFolders:
-  - Assets/Settings
+  - Assets/Samples/HTML UI (HTML-in-Canvas)/0.1.0/Full UI Sample/Scenes
   m_LastFoldersGridSize: 16
   m_LastProjectPath: D:\Unity\webui
   m_LockTracker:
@@ -1056,10 +1056,18 @@ MonoBehaviour:
   m_FolderTreeState:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs:
-    - m_rawData: 0
+    - m_rawData: 1099511662756
     m_LastClickedID:
-      m_rawData: 0
-    m_ExpandedIDs: []
+      m_rawData: 1099511662756
+    m_ExpandedIDs:
+    - m_rawData: 0
+    - m_rawData: 6442450943
+    - m_rawData: 1099511662488
+    - m_rawData: 1099511662522
+    - m_rawData: 1099511662526
+    - m_rawData: 1099511662750
+    - m_rawData: 1099511662752
+    - m_rawData: 5497558173663
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1126,8 +1134,8 @@ MonoBehaviour:
     m_ExpandedInstanceIDs: []
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: 
-      m_OriginalName: 
+      m_Name: Scenes
+      m_OriginalName: Scenes
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
@@ -1135,10 +1143,10 @@ MonoBehaviour:
         width: 0
         height: 0
       m_UserData:
-        m_rawData: 0
+        m_rawData: 1099511662756
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 11
+      m_OriginalEventType: 0
       m_IsRenamingFilename: 1
       m_TrimLeadingAndTrailingWhitespace: 0
       m_ClientGUIView: {fileID: 16}
@@ -1176,7 +1184,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 1486
-    y: 24
+    y: 87
     width: 432
     height: 1418
   m_SerializedDataModeController:
@@ -1935,7 +1943,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 679
-    y: 24
+    y: 944
     width: 805
     height: 561
   m_SerializedDataModeController:
@@ -1975,7 +1983,7 @@ MonoBehaviour:
   m_Pos:
     serializedVersion: 2
     x: 353
-    y: 24
+    y: 87
     width: 1131
     height: 831
   m_SerializedDataModeController:
@@ -2081,8 +2089,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Hierarchy\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 24
+    x: 1
+    y: 87
     width: 351
     height: 831
   m_SerializedDataModeController:
@@ -2102,41 +2110,17 @@ MonoBehaviour:
     m_DynamicPanelBehaviorModified: 0
   m_ViewState:
     ValidContent: 10
-    ViewModelState: 7adaee72040000001c0000009c0000000200000003000000ffffffff2212f54802000000180000000100000076fa4866010000002c0000000200000000000000000000000000000000000000cf01000000030000010000000000000000000000000000000000000000000000000000000000000000000000000000001b0500000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000666d00000003000000000000y
+    ViewModelState: 7adaee72040000001c0000009c0000000200000003000000ffffffff2212f54802000000180000000100000076fa4866010000002c000000020000002e5c02feb19bde41848c0569542ed4481b050000000500000100000002000000a08601000000000000000000000000002e5c02feb19bde41848c0569542ed44889820000000500000000000002000000457e14350000000000000000000000002e5c02feb19bde41848c0569542ed448a08700000009000000000000y
     SearchText: 
     Columns:
-    - ColumnId: Visibility
-      Visible: 1
-      Width: 20
-      Index: 0
-    - ColumnId: Picking
-      Visible: 1
-      Width: 20
-      Index: 1
     - ColumnId: HierarchyViewColumn Name
       Visible: 1
       Width: 200
-      Index: 2
-    - ColumnId: GameObject/Active
-      Visible: 0
-      Width: 50
-      Index: 3
+      Index: 0
     - ColumnId: HierarchyViewColumn Navigate
       Visible: 1
       Width: 18
-      Index: 3
-    - ColumnId: GameObject/Layer
-      Visible: 0
-      Width: 150
-      Index: 4
-    - ColumnId: GameObject/Tag
-      Visible: 0
-      Width: 100
-      Index: 5
-    - ColumnId: GameObject/Static
-      Visible: 0
-      Width: 75
-      Index: 6
+      Index: 1
     ScrollPositionX: -1
     ScrollPositionY: -1
   m_WindowGUID: 90781ddeef904cb4ab1ec4574c8d3b2c

@@ -1,6 +1,6 @@
-# webui — HTML UI for Unity Web
+# htmlui — HTML UI for Unity Web
 
-A Unity 6 project that develops **HTML UI**, a package for building Unity user interfaces out of HTML and CSS
+A Unity project that develops **HTML UI**, a package for building Unity user interfaces out of HTML and CSS
 for WebGL2 and WebGPU builds. The DOM is real and lives in the page, so it stays accessible to screen readers,
 find-in-page, text selection and IME; Chrome's [HTML-in-Canvas](https://github.com/WICG/html-in-canvas) API
 composites it into Unity textures, so it can be drawn as a full-screen HUD or projected onto meshes in the scene.
@@ -9,15 +9,15 @@ Browsers without the API get the same DOM as an overlay above the canvas.
 In the Editor, play mode renders documents through a real Chrome driven over the DevTools Protocol, so the UI
 can be seen, clicked and typed into in the Game view without making a build.
 
-The package itself, with its own README, lives at [Packages/com.webui.htmlui](Packages/com.webui.htmlui).
+The package itself, with its own README, lives at [Packages/com.brendan.htmlui](Packages/com.brendan.htmlui).
 
 ## Repository layout
 
 | Path | What it is |
 | --- | --- |
-| [Packages/com.webui.htmlui/](Packages/com.webui.htmlui/) | The package, embedded. Runtime bridge, Editor preview, docs, samples. |
-| [Packages/com.webui.htmlui/Documentation~/](Packages/com.webui.htmlui/Documentation~/) | User guide, runtime internals, Editor preview internals. |
-| [Packages/com.webui.htmlui/Samples~/FullUISample/](Packages/com.webui.htmlui/Samples~/FullUISample/) | The shipped sample, "Orbital Salvage": menu, settings, HUD, inventory, dialogs, a world-space console. |
+| [Packages/com.brendan.htmlui/](Packages/com.brendan.htmlui/) | The package, embedded. Runtime bridge, Editor preview, docs, samples. |
+| [Packages/com.brendan.htmlui/Documentation~/](Packages/com.brendan.htmlui/Documentation~/) | User guide, runtime internals, Editor preview internals. |
+| [Packages/com.brendan.htmlui/Samples~/FullUISample/](Packages/com.brendan.htmlui/Samples~/FullUISample/) | The shipped sample, "Orbital Salvage": menu, settings, HUD, inventory, dialogs, a world-space console. |
 | [Assets/Samples/](Assets/Samples/) | The same sample as imported through the Package Manager. Keep it in sync with `Samples~`. |
 | [Assets/WebGLTemplates/HtmlUI/](Assets/WebGLTemplates/HtmlUI/) | WebGL template with a full-window canvas and the Origin Trial `<meta>` placeholder. |
 
@@ -50,25 +50,25 @@ The package itself, with its own README, lives at [Packages/com.webui.htmlui](Pa
 
 ## Using the package elsewhere
 
-Copy `Packages/com.webui.htmlui` into another project's `Packages` folder, or reference it from
+Copy `Packages/com.brendan.htmlui` into another project's `Packages` folder, or reference it from
 `Packages/manifest.json`:
 
 ```json
-"com.webui.htmlui": "file:../../webui/Packages/com.webui.htmlui"
+"com.brendan.htmlui": "file:../../htmlui/Packages/com.brendan.htmlui"
 ```
 
 Then import **Full UI Sample** from the Package Manager to see what the package expects of your HTML, CSS and
-C#. The [user guide](Packages/com.webui.htmlui/Documentation~/UserGuide.md) is the place to start authoring.
+C#. The [user guide](Packages/com.brendan.htmlui/Documentation~/UserGuide.md) is the place to start authoring.
 
 ## Documentation
 
 | Document | Covers |
 | --- | --- |
-| [Package README](Packages/com.webui.htmlui/README.md) | Overview, quick start, component and API summary, limitations. |
-| [UserGuide.md](Packages/com.webui.htmlui/Documentation~/UserGuide.md) | Authoring UI: setup, HTML and CSS conventions, events, updates, world panels, input, accessibility, troubleshooting. |
-| [Runtime.md](Packages/com.webui.htmlui/Documentation~/Runtime.md) | The web build: the bridge, paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing. |
-| [EditorPreview.md](Packages/com.webui.htmlui/Documentation~/EditorPreview.md) | The Editor: Chrome over DevTools, the frame pipeline, pointer and keyboard relay, the element handle model. |
-| [CHANGELOG.md](Packages/com.webui.htmlui/CHANGELOG.md) | What changed, and what is unreleased. |
+| [Package README](Packages/com.brendan.htmlui/README.md) | Overview, quick start, component and API summary, limitations. |
+| [UserGuide.md](Packages/com.brendan.htmlui/Documentation~/UserGuide.md) | Authoring UI: setup, HTML and CSS conventions, events, updates, world panels, input, accessibility, troubleshooting. |
+| [Runtime.md](Packages/com.brendan.htmlui/Documentation~/Runtime.md) | The web build: the bridge, paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing. |
+| [EditorPreview.md](Packages/com.brendan.htmlui/Documentation~/EditorPreview.md) | The Editor: Chrome over DevTools, the frame pipeline, pointer and keyboard relay, the element handle model. |
+| [CHANGELOG.md](Packages/com.brendan.htmlui/CHANGELOG.md) | What changed, and what is unreleased. |
 
 ## Working on the package
 
@@ -92,4 +92,4 @@ preview; see the changelog for what is in flight.
 
 ## License
 
-MIT. See [LICENSE.md](Packages/com.webui.htmlui/LICENSE.md) in the package.
+MIT. See [LICENSE.md](Packages/com.brendan.htmlui/LICENSE.md) in the package.
