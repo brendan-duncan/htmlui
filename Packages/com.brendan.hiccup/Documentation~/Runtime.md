@@ -194,9 +194,19 @@ both. When it does not, the bridge allocates a staging `GPUTexture` with the req
 into that, then `copyTextureToTexture` into Unity's texture. The staging texture is cached per panel and
 reallocated only on size or format change.
 
-The copy itself is `drawElementImageToTexture` if available, else `copyElementImageToTexture` — attempted first
-with the descriptor form and, on `TypeError`, with the older positional form. `premultipliedAlpha` follows the
-document; `colorSpace` is `'srgb'`.
+The copy itself is `drawElementImageToTexture` if available, else `copyElementImageToTexture`. The two take
+differently shaped destinations, per Chromium's `gpu_queue.idl`:
+
+* `drawElementImageToTexture({ source }, { texture, premultipliedAlpha, colorSpace, size })` — the destination
+  is a `GPUImageCopyTextureTagged` extended with a `size` (`GPUDrawElementImageDestination`), so `texture` sits
+  at the top level.
+* `copyElementImageToTexture({ source }, { destination: { texture, … }, width, height })` — the destination
+  wraps a `GPUImageCopyTextureTagged` under `destination` (`GPUCopyElementImageDestination`).
+
+The bridge tries each form newest first and moves to the next on `TypeError` (the shape was rejected); any other
+exception is reported and retried next frame. The older positional `copyElementImageToTexture(element, width,
+height, { texture })` form is the last resort. `premultipliedAlpha` follows the document; `colorSpace` is
+`'srgb'`.
 
 If the device or texture cannot be resolved, the bridge warns once and the panel stays blank. That is the case
 where `HtmlRuntime.ForceOverlay = true` or switching to WebGL2 is the answer.

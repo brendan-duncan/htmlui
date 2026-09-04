@@ -768,21 +768,36 @@ var HiccupLibrary = {
 
       var w = Math.min(p.texW, tex.width), h = Math.min(p.texH, tex.height);
       var dest = { texture: dst, premultipliedAlpha: !!p.premultiply, colorSpace: 'srgb' };
-      try {
-        if (typeof q.drawElementImageToTexture === 'function') {
-          q.drawElementImageToTexture({ source: p.el }, { destination: dest, width: w, height: h });
-        } else if (typeof q.copyElementImageToTexture === 'function') {
-          try {
-            q.copyElementImageToTexture({ source: p.el }, { destination: dest, width: w, height: h });
-          } catch (eNew) {
-            if (!(eNew instanceof TypeError)) throw eNew;
-            q.copyElementImageToTexture(p.el, w, h, { texture: dst });
-          }
-        } else {
-          return false;
+      // The two entry points take differently shaped destinations (gpu_queue.idl):
+      //   drawElementImageToTexture(GPUDrawElementImageSource, GPUDrawElementImageDestination)
+      //     destination : GPUImageCopyTextureTagged + { size: GPUExtent3D }      -> texture at the top level
+      //   copyElementImageToTexture(GPUCopyElementImageSource, GPUCopyElementImageDestination)
+      //     destination : { destination: GPUImageCopyTextureTagged, width, height } -> texture nested
+      // Each form is tried newest first; a TypeError means the shape was rejected, so fall through to the
+      // next one. Any other exception (typically "no snapshot yet") is reported and retried next frame.
+      var forms = [];
+      if (typeof q.drawElementImageToTexture === 'function') {
+        forms.push(function () {
+          var d = { texture: dest.texture, premultipliedAlpha: dest.premultipliedAlpha, colorSpace: dest.colorSpace, size: [w, h, 1] };
+          q.drawElementImageToTexture({ source: p.el }, d);
+        });
+        forms.push(function () { q.drawElementImageToTexture({ source: p.el }, { destination: dest, width: w, height: h }); });
+      }
+      if (typeof q.copyElementImageToTexture === 'function') {
+        forms.push(function () { q.copyElementImageToTexture({ source: p.el }, { destination: dest, width: w, height: h }); });
+        forms.push(function () { q.copyElementImageToTexture(p.el, w, h, { texture: dst }); });
+      }
+      if (forms.length === 0) return false;
+      var lastErr = null;
+      for (var i = 0; i < forms.length; i++) {
+        try { forms[i](); lastErr = null; break; }
+        catch (e) {
+          lastErr = e;
+          if (!(e instanceof TypeError)) break;
         }
-      } catch (e) {
-        HUI.warnOnce('gpuup', 'copyElementImageToTexture failed (will retry): ' + e);
+      }
+      if (lastErr) {
+        HUI.warnOnce('gpuup', 'HTML-in-Canvas WebGPU upload failed (will retry): ' + lastErr);
         return false;
       }
 

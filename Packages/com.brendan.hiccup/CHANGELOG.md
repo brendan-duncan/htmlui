@@ -60,6 +60,10 @@
   page with "Error 153"; storage, cookies and postMessage also behave as they do in a build.
 
 ### Fixed
+- WebGPU uploads on current Chrome Canary failed with "Required member is undefined" because
+  `drawElementImageToTexture` was given the `copyElementImageToTexture` destination shape. Its destination is a
+  `GPUImageCopyTextureTagged` plus `size`, with `texture` at the top level; the bridge now passes that and falls
+  back through the other forms on `TypeError`.
 - Overlay mode no longer shows the UI over the web template's loading screen. The overlay used to be a
   fixed, z-indexed layer on `<body>`; it is now the canvas's next sibling with no z-index, so it stacks above
   the canvas and below whatever the page draws over the canvas, exactly as texture mode does.

@@ -159,7 +159,7 @@ orientation handling, input projection and the element handle model in detail.
 
 * HTML-in-Canvas is experimental: cross-origin iframes are not drawn, and some API names differ between Chrome
   versions (the bridge tries `texElementSubImage2D`, then the 3- and 6-argument `texElementImage2D`;
-  `drawElementImageToTexture`, then both `copyElementImageToTexture` forms).
+  `drawElementImageToTexture` with its own destination shape, then both `copyElementImageToTexture` forms).
 * `<script>` inside your HTML is not executed (`innerHTML` semantics). Use `HtmlDocument.Eval`.
 * On WebGPU the bridge needs the JS-side texture for `RenderTexture.GetNativeTexturePtr()`; it looks it up
   through `wgpu[ptr]` / `Module.WebGPU` and copies through a staging texture when the Unity texture lacks
