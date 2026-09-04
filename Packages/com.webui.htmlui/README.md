@@ -144,8 +144,9 @@ classes, properties, `InnerHtml`, `ShowModal`, `Remove`) are queued and sent as 
 so a per-frame HUD update is a single message. Reads (`Value`, `GetAttribute`, `Checked`, `Bounds`, `QAll`) block
 on a round trip, which is a fraction of a millisecond to a local browser but is worth keeping out of `Update`.
 
-Not yet wired up in the preview: keyboard input (so text fields cannot be typed into from the Game view),
-pointer mode and `BlockUnityInput` (Unity receives the same clicks the document does), and mipmap parity with
+Keyboard input goes to the document the last click landed in, so text fields, Enter, Backspace, arrows and
+Ctrl shortcuts work from the Game view; IME and composed input do not. Not yet wired up in the preview: pointer
+mode and `BlockUnityInput` (Unity receives the same clicks and keys the document does), and mipmap parity with
 the WebGL path.
 
 [Documentation~/EditorPreview.md](Documentation~/EditorPreview.md) describes the frame pipeline, the colour and
