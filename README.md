@@ -38,11 +38,10 @@ https://brendan-duncan.github.io/hiccup/build/multiengine
 
 | Path | What it is |
 | --- | --- |
-| [Packages/com.brendan.hiccup/](Packages/com.brendan.hiccup/) | The package, embedded. Runtime bridge, Editor preview, docs, samples. |
+| [Packages/com.brendan.hiccup/](Packages/com.brendan.hiccup/) | The package, embedded. Runtime bridge, Editor preview, docs. |
 | [Packages/com.brendan.hiccup/Documentation~/](Packages/com.brendan.hiccup/Documentation~/) | User guide, runtime internals, Editor preview internals. |
-| [Packages/com.brendan.hiccup/Samples~/FullUISample/](Packages/com.brendan.hiccup/Samples~/FullUISample/) | The main sample, "Orbital Salvage": menu, settings, HUD, inventory, dialogs, a world-space console. |
-| [Packages/com.brendan.hiccup/Samples~/ThreeJsDesk/](Packages/com.brendan.hiccup/Samples~/ThreeJsDesk/) | A three.js page on a monitor: a same-origin iframe painted by HTML-in-Canvas onto a world-space quad, driven by a mouse you drag around the desk. |
-| [Assets/Samples/](Assets/Samples/) | The same sample as imported through the Package Manager. Keep it in sync with `Samples~`. |
+| [Assets/Samples/Hiccup/0.1.0/Full UI Sample/](Assets/Samples/Hiccup/0.1.0/Full%20UI%20Sample/) | The main sample, "Orbital Salvage": menu, settings, HUD, inventory, dialogs, a world-space console. |
+| [Assets/Samples/Hiccup/0.1.0/Three.js Desk/](Assets/Samples/Hiccup/0.1.0/Three.js%20Desk/) | A three.js page on a monitor: a same-origin iframe painted by HTML-in-Canvas onto a world-space quad, driven by a mouse you drag around the desk. |
 | [Assets/WebGLTemplates/Hiccup/](Assets/WebGLTemplates/Hiccup/) | WebGL template with a full-window canvas and the Origin Trial `<meta>` placeholder. |
 
 ## Getting started
@@ -81,8 +80,8 @@ Copy `Packages/com.brendan.hiccup` into another project's `Packages` folder, or 
 "com.brendan.hiccup": "file:../../hiccup/Packages/com.brendan.hiccup"
 ```
 
-Then import **Full UI Sample** from the Package Manager to see what the package expects of your HTML, CSS and
-C#. The [user guide](Packages/com.brendan.hiccup/Documentation~/UserGuide.md) is the place to start authoring.
+The samples live in this project rather than in the package, so copy `Assets/Samples/Hiccup` across as well if
+you want them there. They show what the package expects of your HTML, CSS and C#. The [user guide](Packages/com.brendan.hiccup/Documentation~/UserGuide.md) is the place to start authoring.
 
 ## Documentation
 
@@ -93,20 +92,6 @@ C#. The [user guide](Packages/com.brendan.hiccup/Documentation~/UserGuide.md) is
 | [Runtime.md](Packages/com.brendan.hiccup/Documentation~/Runtime.md) | The web build: the bridge, paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing. |
 | [EditorPreview.md](Packages/com.brendan.hiccup/Documentation~/EditorPreview.md) | The Editor: Chrome over DevTools, the frame pipeline, pointer and keyboard relay, the element handle model. |
 | [CHANGELOG.md](Packages/com.brendan.hiccup/CHANGELOG.md) | What changed, and what is unreleased. |
-
-## Working on the package
-
-* **Two copies of the sample.** `Samples~/FullUISample` is what the package ships; `Assets/Samples/...` is the
-  imported copy this project runs. Edit one and mirror to the other.
-* **Compiling without batch mode.** The Editor is usually open on this project, which rules out
-  `Unity.exe -batchmode`. The package compiles cleanly with Roslyn alone: reference
-  `Editor/Data/Managed/UnityEngine/*.dll` from the Unity install (that folder also holds the editor modules),
-  `Editor/Data/NetStandard/ref/2.1.0/netstandard.dll` and `Library/ScriptAssemblies/UnityEngine.UI.dll`, then
-  compile once with `UNITY_EDITOR` and once with `UNITY_WEBGL` to cover both sides of the bridge.
-* **Testing the Editor preview outside Unity.** `CdpClient`, `ChromeLauncher`, `Json` and `PngDecoder` have no
-  Unity dependency and can be driven from a plain console project. `EditorPreview.md` describes the approach.
-* **The real behaviour needs a web build.** The preview is genuinely Chrome, so layout and events are real, but
-  accessibility and HTML-in-Canvas compositing only exist in a build. Check those in Chrome 148+ with the flag.
 
 ## Status
 
