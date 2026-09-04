@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>three.js desk scene</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; }
+  canvas { display: block; }
+  #cursor {
+    position: absolute; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 6px #000, inset 0 0 4px rgba(0,0,0,.6);
+    pointer-events: none; transition: transform .08s, border-color .08s;
+  }
+  #cursor.down { transform: scale(.7); border-color: #ffd166; }
+  #cursor.over { border-color: #6ee7b7; }
+  #hint {
+    position: absolute; left: 14px; bottom: 12px; color: #9fb3c8; pointer-events: none;
+    font: 15px/1.4 "Segoe UI", system-ui, sans-serif; text-shadow: 0 1px 2px #000;
+  }
+</style>
+</head>
+<body>
+<div id="cursor"></div>
+<div id="hint">Loading three.js…</div>
+<script type="module">
+// This page runs inside the monitor's iframe. It has no pointer of its own: the desk mouse in Unity writes
+// data-x / data-y (0..1), data-down, data-clicks and data-wheel onto the iframe element, and this page reads
+// them every frame through window.frameElement (allowed because the frame is same-origin).
+const hint = document.getElementById('hint');
+const cursorEl = document.getElementById('cursor');
+const status = window.frameElement && window.frameElement.parentNode
+  ? window.frameElement.parentNode.querySelector('#status') : null;
+const say = (text) => { if (status) status.textContent = text; };
+
+let THREE;
+try {
+  THREE = await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
+} catch (e) {
+  hint.textContent = 'three.js could not be loaded from the CDN (offline?).';
+  say('three.js failed to load');
+  throw e;
+}
+hint.textContent = 'Drag the mouse on the desk to move the cursor. Drag a shape to move it, drag empty space to orbit, tap to recolour, scroll to zoom.';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1020);
+scene.fog = new THREE.Fog(0x0b1020, 12, 30);
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
+let yaw = 0.5, pitch = 0.42, dist = 9;
+function placeCamera() {
+  camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist + 0.8, Math.cos(yaw) * Math.cos(pitch) * dist);
+  camera.lookAt(0, 0.8, 0);
+}
+placeCamera();
+
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x1a1408, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(4, 8, 5);
+scene.add(sun);
+scene.add(new THREE.GridHelper(20, 20, 0x2a3350, 0x1a2038));
+
+const shapes = [];
+const geometries = [
+  ['Cube', new THREE.BoxGeometry(1.2, 1.2, 1.2)],
+  ['Sphere', new THREE.SphereGeometry(0.75, 40, 24)],
+  ['Torus knot', new THREE.TorusKnotGeometry(0.5, 0.18, 120, 16)],
+  ['Cone', new THREE.ConeGeometry(0.7, 1.4, 32)],
+  ['Icosahedron', new THREE.IcosahedronGeometry(0.8, 0)],
+];
+geometries.forEach(([name, geometry], i) => {
+  const a = i / geometries.length * Math.PI * 2;
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL(i / geometries.length, 0.6, 0.55), roughness: 0.4, metalness: 0.1,
+  }));
+  mesh.position.set(Math.cos(a) * 2.6, 0.9, Math.sin(a) * 2.6);
+  mesh.name = name;
+  mesh.userData = { baseY: 0.9, phase: i, spin: 0.4 + i * 0.15, pop: 0 };
+  scene.add(mesh);
+  shapes.push(mesh);
+});
+
+// ---- Desk mouse -> cursor -> raycasts
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const cursor = { x: innerWidth / 2, y: innerHeight / 2 };
+const last = { x: 0.5, y: 0.5, down: false, clicks: 0, wheel: 0, cx: cursor.x, cy: cursor.y };
+let hovered = null, grabbed = null;
+const grabPlane = new THREE.Plane(), grabOffset = new THREE.Vector3(), hitPoint = new THREE.Vector3();
+
+function pick() {
+  ndc.set(cursor.x / innerWidth * 2 - 1, -(cursor.y / innerHeight * 2 - 1));
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(shapes, false);
+  return hits.length ? hits[0].object : null;
+}
+function setHovered(mesh) {
+  if (hovered === mesh) return;
+  if (hovered) hovered.material.emissive.setHex(0x000000);
+  hovered = mesh;
+  if (hovered) hovered.material.emissive.setHex(0x223344);
+  cursorEl.classList.toggle('over', !!hovered);
+  say(hovered ? 'over ' + hovered.name.toLowerCase() : 'drag the mouse on the desk');
+}
+function press() {
+  cursorEl.classList.add('down');
+  grabbed = pick();
+  if (grabbed) {
+    // Drag on a plane through the object, facing the camera.
+    const normal = new THREE.Vector3();
+    camera.getWorldDirection(normal);
+    grabPlane.setFromNormalAndCoplanarPoint(normal, grabbed.position);
+    raycaster.ray.intersectPlane(grabPlane, hitPoint);
+    grabOffset.copy(grabbed.position).sub(hitPoint);
+    say('dragging ' + grabbed.name.toLowerCase());
+  } else {
+    say('orbiting');
+  }
+}
+function release() {
+  cursorEl.classList.remove('down');
+  grabbed = null;
+  hovered = null;            // force setHovered to restate the status after a drag
+  setHovered(pick());
+  if (!hovered) say('drag the mouse on the desk');
+}
+function click() {
+  const mesh = pick();
+  if (!mesh) return;
+  mesh.material.color.setHSL(Math.random(), 0.65, 0.55);
+  mesh.userData.pop = 1;
+  say('clicked ' + mesh.name.toLowerCase());
+}
+function drag(dx, dy) {
+  if (grabbed) {
+    ndc.set(cursor.x / innerWidth * 2 - 1, -(cursor.y / innerHeight * 2 - 1));
+    raycaster.setFromCamera(ndc, camera);
+    if (raycaster.ray.intersectPlane(grabPlane, hitPoint)) {
+      grabbed.position.copy(hitPoint).add(grabOffset);
+      grabbed.userData.baseY = Math.max(0.5, grabbed.position.y);
+    }
+  } else {
+    yaw -= dx * 0.006;
+    pitch = Math.max(0.08, Math.min(1.3, pitch + dy * 0.006));
+    placeCamera();
+  }
+}
+
+function readDesk() {
+  const d = (window.frameElement && window.frameElement.dataset) || {};
+  const num = (v, fallback) => { const n = parseFloat(v); return Number.isFinite(n) ? n : fallback; };
+  const x = num(d.x, last.x), y = num(d.y, last.y);
+  const down = d.down === '1';
+  const clicks = num(d.clicks, last.clicks);
+  const wheel = num(d.wheel, last.wheel);
+
+  cursor.x = x * innerWidth;
+  cursor.y = y * innerHeight;
+  cursorEl.style.left = cursor.x + 'px';
+  cursorEl.style.top = cursor.y + 'px';
+  const dx = cursor.x - last.cx, dy = cursor.y - last.cy;
+
+  if (wheel !== last.wheel) {
+    dist = Math.max(4, Math.min(18, dist - (wheel - last.wheel) * 0.008));
+    placeCamera();
+  }
+  if (down && !last.down) press();
+  if (down && (dx || dy)) drag(dx, dy);
+  if (!down && last.down) release();
+  if (clicks !== last.clicks) click();
+  if (!down && (dx || dy)) setHovered(pick());
+
+  Object.assign(last, { x, y, down, clicks, wheel, cx: cursor.x, cy: cursor.y });
+}
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+const clock = new THREE.Clock();
+say('drag the mouse on the desk');
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  readDesk();
+  for (const mesh of shapes) {
+    const u = mesh.userData;
+    if (mesh !== grabbed) mesh.position.y = u.baseY + Math.sin(t * 1.3 + u.phase) * 0.12;
+    mesh.rotation.y += u.spin * 0.01;
+    mesh.rotation.x += u.spin * 0.004;
+    if (u.pop > 0) { u.pop = Math.max(0, u.pop - 0.05); }
+    const s = 1 + Math.sin(u.pop * Math.PI) * 0.25;
+    mesh.scale.setScalar(s);
+  }
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

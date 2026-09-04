@@ -1,0 +1,69 @@
+# Changelog
+
+## Unreleased
+
+### Changed
+- Renamed the package to **Hiccup** (HTML-in-Canvas Components Unity Package). Everything that carried the old
+  `HtmlUI` name moved with it: package id `com.brendan.hiccup`, namespaces `Hiccup`, `Hiccup.Editor`,
+  `Hiccup.Editor.Cdp` and `Hiccup.Samples`, assemblies `Hiccup` and `Hiccup.Editor`, the `Hiccup.jslib` bridge
+  and its `Hiccup_*` exports, shaders under `Hiccup/` and `Hidden/Hiccup/`, the `Hiccup` WebGL template,
+  the `HICCUP_CHROME` environment variable, the `Hiccup.Preview.*` EditorPrefs keys and the
+  **Window ▸ Hiccup**, **Assets ▸ Create ▸ Hiccup** and **Add Component ▸ Hiccup** menus. Class names
+  (`HtmlDocument`, `HtmlElement`, `HtmlScreenSurface`, ...) are unchanged; update `using HtmlUI;` to
+  `using Hiccup;` and re-select the WebGL template under Player settings.
+
+### Added
+- Editor preview: documents render and respond in the Game view during play mode, backed by a real Chrome driven
+  over the DevTools Protocol (`Hiccup.Editor.Cdp`). One browser target per document, screencast frames
+  premultiplied into a `RenderTexture`, pointer input projected through the document's pixel-to-clip matrix.
+- `IHtmlBackend` / `HtmlBackend`: a registration point for bridges other than `Hiccup.jslib`. The Editor stubs in
+  `HtmlNative` forward to the registered backend, so nothing above the bridge changed. `HtmlBackend.SetKeyboardCapture`
+  and `DrainKeyPresses` let a backend read the Game view's keys through an IMGUI relay on the runtime object.
+- Element API in the preview: `Q`, `QAll` and every `HtmlElement` operation. Handles are resolved per operation
+  from a selector description, writes are batched once per document per frame, reads are a blocking round trip.
+- **Window > Hiccup** menu for the preview (enable, headless, console logging, frame orientation, restart).
+- Editor preview frames are decoded off the main thread: screencast messages are base64-decoded straight from the
+  socket bytes, PNGs are decoded by `PngDecoder` on a pool thread with recycled buffers, and the main thread only
+  uploads pixels. `Texture2D.LoadImage` remains as the fallback for PNGs outside the RGB/RGBA 8-bit subset.
+- Editor preview keyboard input: keys typed in the Game view reach the document the last click landed in, via
+  IMGUI events relayed as DevTools key events. Text fields, Enter, Backspace, arrows, Escape and Ctrl shortcuts
+  work; IME and composed input do not.
+
+- **Assets ▸ Create ▸ Hiccup ▸ HTML Document** and **Style Sheet**: new `.html` fragments and `.css` style sheets
+  from the Project window, with the usual inline rename and a small starter template.
+- `.html` and `.css` assets carry their own Project window icons (orange `<>`, blue `{}`). `.html` now goes through
+  the package's `HtmlImporter`, selected per asset by an `AssetPostprocessor` because Unity's text importer owns the
+  extension by default; the result is still a `TextAsset`.
+
+- **Three.js Desk** sample: a monitor on a desk whose screen is a same-origin `<iframe>` (via `srcdoc`) running
+  a three.js scene, painted by HTML-in-Canvas into a world-space panel. A mouse on the desk, dragged with the
+  real one, drives the page's cursor through batched `data-*` attribute writes on the frame element.
+- Overlay mode is depth-composited when the canvas has an alpha channel. The overlay is placed behind the
+  canvas, `HtmlWorldSurface` and `HtmlScreenSurface` switch to cutout materials (`Hiccup/Overlay Cutout`,
+  `Hiccup/UI Overlay Cutout`) that write depth and alpha 0, and the bridge routes pointer events to the DOM while
+  the pointer is over a panel. `HtmlRuntime.OverlayCutout` reports it; the WebGL template opts in with
+  `webglContextAttributes: { alpha: true }`.
+- Editor preview documents are created on a loopback http origin (`PreviewOrigin`, a one-page server on
+  127.0.0.1) instead of `about:blank`. Embeds that demand a Referer, YouTube among them, refused the origin-less
+  page with "Error 153"; storage, cookies and postMessage also behave as they do in a build.
+
+### Fixed
+- Overlay mode no longer shows the UI over the web template's loading screen. The overlay used to be a
+  fixed, z-indexed layer on `<body>`; it is now the canvas's next sibling with no z-index, so it stacks above
+  the canvas and below whatever the page draws over the canvas, exactly as texture mode does.
+- The samples no longer need the Physics module: scene primitives are built from the built-in meshes without
+  colliders, and Orbital Salvage picks cubes with a ray-versus-bounds test instead of `Physics.Raycast`.
+- Stopping play mode no longer throws `MissingReferenceException` from `HtmlDocument.AfterBridgeUpdate`: a
+  document drops its backend-owned texture once the backend that created it has been unregistered.
+
+## [0.1.0] - 2026-09-01
+
+### Added
+- `HtmlDocument`, `HtmlElement`, `HtmlEvent`, `HtmlRuntime` runtime API.
+- `HtmlScreenSurface` (uGUI RawImage) and `HtmlWorldSurface` (mesh) presenters with geometry sync.
+- HTML-in-Canvas bridge (`Hiccup.jslib`) for WebGL2 (`texElementSubImage2D` / `texElementImage2D`) and WebGPU
+  (`drawElementImageToTexture` / `copyElementImageToTexture`), paint-event driven updates, DOM overlay fallback.
+- Premultiplied-alpha shaders for uGUI and unlit world surfaces.
+- `.css` ScriptedImporter, HtmlDocument inspector, build-time reminders.
+- `Hiccup` WebGL template with Origin Trial placeholder.
+- Full UI Sample ("Orbital Salvage").

@@ -192,8 +192,8 @@
       },
       "url": "https://packages.unity.com"
     },
-    "com.brendan.htmlui": {
-      "version": "file:com.brendan.htmlui",
+    "com.brendan.hiccup": {
+      "version": "file:com.brendan.hiccup",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}

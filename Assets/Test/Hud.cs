@@ -1,5 +1,5 @@
 using UnityEngine;
-using HtmlUI;
+using Hiccup;
 
 public class Hud : MonoBehaviour
 {

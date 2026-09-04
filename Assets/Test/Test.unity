@@ -629,7 +629,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bfaf9aea2d7cc316524ce2a623253f26, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: HtmlUI::HtmlUI.HtmlScreenSurface
+  m_EditorClassIdentifier: Hiccup::Hiccup.HtmlScreenSurface
   document: {fileID: 1466601419}
   sizeDocumentToRect: 1
   uiCamera: {fileID: 0}
@@ -644,7 +644,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 466ce05c1450f5dade3f862056f4c34e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: HtmlUI::HtmlUI.HtmlDocument
+  m_EditorClassIdentifier: Hiccup::Hiccup.HtmlDocument
   html: {fileID: 9027929339269108002, guid: a2e6afc838e1e8d4fb8cd4976971dbd3, type: 3}
   styleSheets:
   - {fileID: 9027929339269108002, guid: 242b662cb61ccc94da5785e3b07df361, type: 3}
