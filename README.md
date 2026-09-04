@@ -29,7 +29,8 @@ Use of HTML as a UI system, including world-space UI.
 https://brendan-duncan.github.io/hiccup/build/sample
 
 ### Multi-Engine
-A Unity game running ThreeJS on a virtual computer, and the ThreeJS scene is running the Hiccup UI Sample within it.
+A Unity game running ThreeJS on a virtual computer, and the ThreeJS scene is running the Unity Hiccup UI Sample within it.
+Is it necessary? No. Is it fun to see how far things can be pushed? Absolutely.
 
 https://brendan-duncan.github.io/hiccup/build/multiengine
 
