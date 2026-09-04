@@ -19,6 +19,8 @@ The package itself, with its own README, lives at [Packages/com.brendan.hiccup](
 > overlay, which keeps the UI usable but cannot project it onto meshes. See the
 > [WICG explainer](https://github.com/WICG/html-in-canvas) for the proposal.
 
+![Hiccup](hiccup.png)
+
 ## Sample
 https://brendan-duncan.github.io/hiccup/build
 
