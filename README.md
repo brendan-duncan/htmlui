@@ -11,6 +11,9 @@ can be seen, clicked and typed into in the Game view without making a build.
 
 The package itself, with its own README, lives at [Packages/com.brendan.hiccup](Packages/com.brendan.hiccup).
 
+## Sample
+https://brendan-duncan.github.io/hiccup/build
+
 ## Repository layout
 
 | Path | What it is |
