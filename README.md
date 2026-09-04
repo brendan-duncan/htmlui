@@ -11,6 +11,14 @@ can be seen, clicked and typed into in the Game view without making a build.
 
 The package itself, with its own README, lives at [Packages/com.brendan.hiccup](Packages/com.brendan.hiccup).
 
+> **[NOTE]**
+> HTML-in-Canvas is an experimental browser API, currently available in Chrome 148 and newer behind the
+> `chrome://flags/#canvas-draw-element` flag, or on a registered origin through the
+> [Origin Trial](https://developer.chrome.com/origintrials/#/view_trial/3478467762190286849) (Chrome 148–150).
+> It is expected to ship in Chrome stable in the near future. Browsers without the API fall back to the DOM
+> overlay, which keeps the UI usable but cannot project it onto meshes. See the
+> [WICG explainer](https://github.com/WICG/html-in-canvas) for the proposal.
+
 ## Sample
 https://brendan-duncan.github.io/hiccup/build
 
