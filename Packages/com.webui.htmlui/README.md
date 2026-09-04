@@ -14,6 +14,14 @@ into Unity textures, so you get the parts UI Toolkit cannot give you on the web:
 Browsers without the API get the same DOM in an overlay layer above the canvas (still accessible and
 interactive, just not composited into the Unity frame). The Editor shows placeholders.
 
+## Documentation
+
+| Document | For |
+| --- | --- |
+| [Documentation~/UserGuide.md](Documentation~/UserGuide.md) | Building UI with the package: setup, authoring, events, world panels, accessibility, troubleshooting. |
+| [Documentation~/Runtime.md](Documentation~/Runtime.md) | How the web build works: the bridge, the paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing, input isolation. |
+| [Documentation~/EditorPreview.md](Documentation~/EditorPreview.md) | How the Editor renders documents through a real Chrome over the DevTools Protocol. |
+
 ## Requirements
 
 * Unity 6000.0+ with the **Web** platform module (WebGL2 or WebGPU).
@@ -97,6 +105,10 @@ so they ignore events whose target is inside a panel (Unity would otherwise `pre
 swallow typing). Clicks on empty panel space fall through when `PointerMode` is `ChildrenOnly` (or via
 `pointer-events` in your CSS).
 
+[Documentation~/Runtime.md](Documentation~/Runtime.md) covers all of this properly: feature detection, the paint
+and dirty-tracking model, who owns the texture on each backend and why, the WebGPU handle-resolution and staging
+paths, the three geometry strategies, and the failure modes each one produces.
+
 Canvas children are not hit testable until the canvas is told where they are. In `Auto` mode
 (`HtmlRuntime.GeometryMode`) affine panels go through `canvas.updateElementGeometry()`, perspective panels through
 the two-argument `canvas.getElementTransform()` that Chrome's WebGL/WebGPU demos use (falling back to an identity
@@ -135,6 +147,9 @@ on a round trip, which is a fraction of a millisecond to a local browser but is 
 Not yet wired up in the preview: keyboard input (so text fields cannot be typed into from the Game view),
 pointer mode and `BlockUnityInput` (Unity receives the same clicks the document does), and mipmap parity with
 the WebGL path.
+
+[Documentation~/EditorPreview.md](Documentation~/EditorPreview.md) describes the frame pipeline, the colour and
+orientation handling, input projection and the element handle model in detail.
 
 ## Limitations
 
