@@ -44,13 +44,15 @@ whether *either* bridge exists, which is what makes `HtmlDocument` allocate a te
 
 | File | Role |
 | --- | --- |
-| `Runtime/HtmlBackend.cs` | `IHtmlBackend` and the registry. The only runtime file that exists because of the preview. |
+| `Runtime/HtmlBackend.cs` | `IHtmlBackend`, the registry, and keyboard capture for backends. |
+| `Runtime/HtmlKeyboardRelay.cs` | Collects the Game view's key events through IMGUI. Runtime-side because Unity will not attach an Editor-assembly component. |
 | `Runtime/HtmlNative.cs` | Editor stubs forward to the backend. |
 | `Runtime/HtmlDocument.cs` | A third texture branch for backend-owned textures. |
 | `Editor/HtmlEditorPreview.cs` | Settings, menu, and the lifecycle that guarantees Chrome dies with the session. |
 | `Editor/Cdp/ChromeLauncher.cs` | Finds and starts Chrome, discovers its DevTools endpoint. |
 | `Editor/Cdp/CdpClient.cs` | JSON-RPC over one web socket. |
 | `Editor/Cdp/Json.cs` | Minimal JSON reader/writer for protocol traffic. |
+| `Editor/Cdp/PngDecoder.cs` | Decodes screencast PNGs off the main thread. |
 | `Editor/Cdp/CdpBridgeJs.cs` | The script injected into every page. |
 | `Editor/Cdp/CdpHtmlBackend.cs` | The backend: targets, frames, textures, input, elements. |
 | `Editor/Cdp/EditorPointer.cs` | Reads the mouse without binding to either input backend. |
@@ -105,13 +107,17 @@ This is the part that replaces HTML-in-Canvas.
 
 ```
 Chrome paints
-   |  Page.screencastFrame  (base64 PNG, over the web socket, receive thread)
+   |  Page.screencastFrame  (base64 PNG, over the web socket)
    v
-panel.PendingFrame = byte[]           + Page.screencastFrameAck  (or Chrome stalls)
+receive thread:  base64 decoded straight from the message bytes
+                 + Page.screencastFrameAck  (or Chrome stalls)
+   |
+   v
+pool thread:     PngDecoder -> RGBA32 bytes, bottom-up      (newest frame wins)
    |
    |  main thread, once per frame, from CdpHtmlBackend.Update()
    v
-Texture2D.LoadImage(staging)          straight alpha, sRGB-encoded, bottom-up
+Texture2D.LoadRawTextureData + Apply  straight alpha, sRGB-encoded, bottom-up
    |
    |  Graphics.Blit(staging, target, HtmlUI/EditorPremultiply)   with GL.sRGBWrite = false
    v
@@ -124,17 +130,34 @@ HtmlDocument.Texture  ->  HtmlScreenSurface / HtmlWorldSurface
 ### Delivery
 
 Chrome only emits a frame when the page actually changes, so an idle document costs nothing. Every frame **must**
-be acknowledged with `Page.screencastFrameAck` or the screencast stalls after one frame; the ack is sent from the
-event handler immediately, not deferred to the decode.
+be acknowledged with `Page.screencastFrameAck` or the screencast stalls after one frame.
 
-Only the most recent frame is kept. If Unity is running slower than the page is painting, intermediate frames are
-dropped rather than queued, which is the right trade for a preview.
+A screencast message is almost entirely one base64 string, and a full-viewport frame runs to megabytes. Pushing
+that through the generic protocol path meant a multi-megabyte string, a character-by-character copy of it inside
+the JSON parser, and a third copy for the base64 decode — per frame, on top of the decode itself. Those
+allocations were most of the Editor's hitching. `CdpClient` instead recognises the message in its raw UTF-8
+bytes, decodes the payload directly from them, and parses only the few hundred bytes that remain as JSON. The
+frame reaches the backend on the receive thread through `ScreencastFrameHandler`, which acknowledges it at once
+and queues it for decoding.
+
+Only the newest undecoded frame is kept per document. If Chrome is painting faster than frames can be decoded,
+intermediate frames are dropped rather than queued, which is the right trade for a preview.
 
 ### Decode
 
-`Texture2D.LoadImage` handles the PNG. The staging texture is created with `linear: true` — that is not a claim
-that the data is linear, it is an instruction that Unity must **not** apply an sRGB→linear conversion when the
-shader samples it. The blit therefore sees the browser's encoded bytes verbatim, which matters for the next step.
+`Texture2D.LoadImage` can only run on the main thread, and a full-viewport frame costs it tens of milliseconds,
+so it is not the primary decoder. Screencast frames are a narrow subset of PNG — 8-bit, RGB or RGBA,
+non-interlaced — and `PngDecoder` handles exactly that subset on a pool thread: one decode per document at a
+time, scratch buffers kept between frames, pixel buffers recycled through a small per-document pool so a steady
+stream of frames allocates nothing. It writes rows bottom-up, matching `LoadImage`'s layout, so nothing after it
+knows which decoder ran. The main thread's share is `LoadRawTextureData` plus `Apply` — an upload, not a decode.
+
+A PNG outside that subset is handed to `LoadImage` on the main thread instead, so an unexpected Chrome
+configuration degrades to the slow path rather than to a blank panel.
+
+The staging texture is created with `linear: true` — that is not a claim that the data is linear, it is an
+instruction that Unity must **not** apply an sRGB→linear conversion when the shader samples it. The blit therefore
+sees the browser's encoded bytes verbatim, which matters for the next step.
 
 ### The blit
 
@@ -177,7 +200,7 @@ supersampling a world panel is a browser-side concern, as it is in a build.
 
 Some Chrome configurations never emit frames. If nothing has arrived 2.5 seconds after a panel became ready, the
 backend stops the screencast and falls back to polling `Page.captureScreenshot` at 20 Hz, with an in-flight guard
-so requests cannot pile up. Decoded frames rejoin the same pipeline, so only delivery differs. This costs a round
+so requests cannot pile up. Screenshots rejoin the same decode pipeline, so only delivery differs. This costs a round
 trip per frame and is a safety net, not the intended path.
 
 ## Reaching `HtmlDocument`
@@ -218,6 +241,32 @@ tracking after the pointer leaves, so drags and releases outside still land.
 The mouse itself is read through `EditorPointer`, which resolves `UnityEngine.InputSystem.Mouse` reflectively and
 falls back to the legacy `Input` class. An assembly reference to a package that may not be installed would not
 compile, and a project may be configured for either backend or both.
+
+## Keyboard input
+
+Keys are read through `HtmlKeyboardRelay`, a component whose `OnGUI` sees the Game view's IMGUI key events.
+Those come from the native event system whichever input backend the project uses, so unlike the mouse this needs
+no reflection into the Input System package. The backend asks for it with `HtmlBackend.SetKeyboardCapture(true)`,
+which adds the relay to the runtime's own driver object, and drains it once per frame with `DrainKeyPresses`. The
+relay lives in the runtime assembly because Unity refuses to attach a component defined in an Editor assembly;
+nothing adds it in a player build.
+
+Keys go to the document the last press landed in; a press outside every document clears that, as clicking the
+page background would. Each press becomes the pair of `Input.dispatchKeyEvent` calls Puppeteer would send: a
+`keyDown` carrying `text` for a typed character (Chrome inserts it and fires keydown, keypress and input), a
+`rawKeyDown` for keys that produce no text (Backspace, Tab, arrows, Escape, Home/End, Page Up/Down, Delete), and a
+`keyUp`. Enter carries `"\r"` so it submits forms and fires `change`. Ctrl or Cmd plus a letter goes out as a
+shortcut with modifiers, which covers select-all, copy, paste and undo.
+
+`Emulation.setFocusEmulationEnabled` is switched on for every target during setup. Each document is its own
+target and none of them is the browser's focused window, so without it a page never believes it has focus: no
+caret, no `:focus` styles, and keys land nowhere.
+
+On Windows, IMGUI reports a typed key as two `KeyDown` events — one with the `KeyCode`, one with the character.
+Only the one with a printable character inserts text; a `KeyCode` without a character is dispatched only when it
+is a special key or a modifier shortcut, so nothing is doubled.
+
+Unity still sees the same keys, as it sees the same clicks — `BlockUnityInput` is not modelled.
 
 ## Events
 
@@ -275,8 +324,11 @@ Sends can come from the Unity main thread. Receiving runs on a background task.
 * Command replies complete a `TaskCompletionSource` on the receive thread. They use
   `RunContinuationsAsynchronously`, and blocking reads use `Task.Wait(timeout)` rather than awaiting, so there is
   no continuation posted to Unity's synchronization context and no deadlock.
-* Protocol *events* are queued and drained by `Update()` on the main thread, so frame decoding, texture creation
-  and event dispatch all happen where Unity requires them.
+* Protocol *events* are queued and drained by `Update()` on the main thread, so texture creation and event
+  dispatch happen where Unity requires them.
+* Screencast frames never touch the main thread until they are pixels: the receive thread routes and acknowledges
+  them, a pool thread decodes, and `Update()` uploads the newest result. The per-document frame slots they share
+  sit under one lock, and the session→document map is a `ConcurrentDictionary` because the receive thread reads it.
 * Async setup work posts its results through a main-thread action queue rather than touching backend state
   directly.
 * The panel list is snapshotted before iteration, because dispatching an event can run user code that destroys a
@@ -302,14 +354,15 @@ already done their work for the frame:
    1. drain the main-thread action queue,
    2. drain protocol events (frames arrive, DOM events dispatch),
    3. flush queued element writes, one batch per document,
-   4. per document: decode the pending frame and blit it, service the capture fallback, dispatch pointer input.
+   4. per document: upload the newest decoded frame and blit it, service the capture fallback, dispatch pointer input,
+   5. dispatch the frame's key presses to the focused document.
 4. `HtmlDocument.AfterBridgeUpdate` — pick up a new or resized texture.
 
 ## Known gaps
 
 | Gap | Consequence |
 | --- | --- |
-| No keyboard input | Text fields and sliders cannot be typed into from the Game view. |
+| IME, dead keys, non-Latin layouts | Keys are relayed one character per press as IMGUI reports them; composed input does not work. |
 | `PointerMode` / `BlockUnityInput` ignored | Unity receives the same clicks the document does. |
 | `PremultipliedAlpha = false` unsupported | The preview always premultiplies; a document that opts out will blend wrongly. The default is `true`. |
 | `Mipmaps = false` ignored | Preview targets always have mipmaps. |

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WebUI.Html
@@ -118,5 +119,37 @@ namespace WebUI.Html
 
         /// <summary>Delivers a DOM event payload from the backend to the document that owns the panel.</summary>
         public static void DispatchEvent(int panel, string json) => HtmlRuntime.DispatchToPanel(panel, json);
+
+        // ---- keyboard capture, for backends that relay the Game view's keys to a browser
+
+        private static HtmlKeyboardRelay s_keyboard;
+
+        /// <summary>
+        /// Starts or stops collecting the Game view's key presses. Keys come from IMGUI, so this works under either
+        /// input backend; the relay component is added to the runtime's own driver object and removed again on
+        /// stop. Read presses back with <see cref="DrainKeyPresses"/>.
+        /// </summary>
+        public static void SetKeyboardCapture(bool enabled)
+        {
+            if (enabled)
+            {
+                if (s_keyboard != null || !HtmlRuntime.HasInstance) return;
+                s_keyboard = HtmlRuntime.Instance.gameObject.AddComponent<HtmlKeyboardRelay>();
+            }
+            else if (s_keyboard != null)
+            {
+                if (Application.isPlaying) UnityEngine.Object.Destroy(s_keyboard);
+                else UnityEngine.Object.DestroyImmediate(s_keyboard);
+                s_keyboard = null;
+            }
+        }
+
+        /// <summary>Appends the key presses seen since the last call to <paramref name="into"/>. Nothing unless capture is on.</summary>
+        public static void DrainKeyPresses(List<HtmlKeyPress> into)
+        {
+            if (s_keyboard == null || into == null) return;
+            into.AddRange(s_keyboard.Pending);
+            s_keyboard.Pending.Clear();
+        }
     }
 }

@@ -46,7 +46,16 @@ namespace WebUI.Html.Editor.Cdp
             public double ReadyTime;
             public bool Screencasting;
 
-            public byte[] PendingFrame;            // most recent encoded frame, consumed on the main thread
+            // Frames cross three threads: the receive thread submits encoded PNGs, a pool thread decodes them,
+            // and the main thread uploads the newest result. Everything below FrameLock is guarded by it.
+            public readonly object FrameLock = new object();
+            public byte[] QueuedPng;               // newest encoded frame waiting for the decoder
+            public bool Decoding;                  // a decode loop is running for this panel
+            public PngDecoder Decoder;             // scratch buffers; only the decode loop touches it
+            public DecodedFrame Pending;           // newest decoded frame, consumed on the main thread
+            public readonly Stack<byte[]> FreePixels = new Stack<byte[]>();   // recycled RGBA buffers
+            public byte[] PendingFrame;            // encoded frame the decoder rejected, for the LoadImage fallback
+
             public Texture2D Staging;
             public RenderTexture Target;
             public int TextureWidth, TextureHeight;
@@ -63,8 +72,17 @@ namespace WebUI.Html.Editor.Cdp
             public double LastFrameTime;
         }
 
+        private sealed class DecodedFrame
+        {
+            public byte[] Rgba;                    // bottom-up RGBA32, exactly Width * Height * 4 bytes
+            public int Width, Height;
+        }
+
+        private const int MaxFreePixelBuffers = 2;   // one being uploaded, one being written, one spare is plenty
+
         private readonly Dictionary<int, Panel> _panels = new Dictionary<int, Panel>();
-        private readonly Dictionary<string, Panel> _bySession = new Dictionary<string, Panel>();
+        // Read on the receive thread to route frames, written on the main thread.
+        private readonly ConcurrentDictionary<string, Panel> _bySession = new ConcurrentDictionary<string, Panel>();
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly List<Panel> _iteration = new List<Panel>();
         private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
@@ -72,6 +90,10 @@ namespace WebUI.Html.Editor.Cdp
         private ChromeLauncher _chrome;
         private CdpClient _client;
         private Material _blit;
+        private bool _keyboardCapturing;
+        private readonly List<HtmlKeyPress> _keys = new List<HtmlKeyPress>();
+        private Panel _keyboardPanel;          // the panel the last press landed in; keys go there
+        private bool _mouseWasDown;
         private int _nextPanelId = 1;
         private bool _starting;
         private bool _failed;
@@ -113,6 +135,7 @@ namespace WebUI.Html.Editor.Cdp
                 var chrome = new ChromeLauncher();
                 await chrome.LaunchAsync(_headless, _debug, _cancel.Token).ConfigureAwait(false);
                 var client = await CdpClient.ConnectAsync(chrome.BrowserWebSocketUrl, _cancel.Token).ConfigureAwait(false);
+                client.ScreencastFrameHandler = (sessionId, frameId, image) => OnScreencastFrame(client, sessionId, frameId, image);
 
                 Post(() =>
                 {
@@ -148,6 +171,9 @@ namespace WebUI.Html.Editor.Cdp
             _handleAge.Clear();
 
             if (_blit != null) { UnityEngine.Object.DestroyImmediate(_blit); _blit = null; }
+            if (_keyboardCapturing) HtmlBackend.SetKeyboardCapture(false);
+            _keyboardCapturing = false;
+            _keyboardPanel = null;
             _client?.Dispose();
             _client = null;
             _chrome?.Dispose();
@@ -178,7 +204,8 @@ namespace WebUI.Html.Editor.Cdp
             if (!_panels.TryGetValue(id, out var panel)) return;
             _panels.Remove(id);
             _pendingOps.Remove(id);
-            if (panel.SessionId != null) _bySession.Remove(panel.SessionId);
+            if (panel.SessionId != null) _bySession.TryRemove(panel.SessionId, out _);
+            if (_keyboardPanel == panel) _keyboardPanel = null;
             ReleaseTextures(panel);
 
             if (Connected && panel.TargetId != null)
@@ -215,6 +242,10 @@ namespace WebUI.Html.Editor.Cdp
                 // A transparent page lets the document composite over the Unity scene like the real thing.
                 await client.SendAsync("Emulation.setDefaultBackgroundColorOverride",
                     "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":0}}", sessionId).ConfigureAwait(false);
+                // Every document is its own target and none of them is the browser's focused window, so without
+                // this a page never believes it has focus: no caret, no focus styles, and keys go nowhere.
+                try { await client.SendAsync("Emulation.setFocusEmulationEnabled", "{\"enabled\":true}", sessionId).ConfigureAwait(false); }
+                catch (CdpException) { /* an older Chrome; typing will need the non-headless window */ }
                 // Re-inject after any navigation the document's own content might trigger.
                 await client.SendAsync("Page.addScriptToEvaluateOnNewDocument",
                     "{\"source\":" + Json.Quote(CdpBridgeJs.Source) + "}", sessionId).ConfigureAwait(false);
@@ -710,12 +741,22 @@ namespace WebUI.Html.Editor.Cdp
             double now = NowSeconds();
             _iteration.Clear();
             _iteration.AddRange(_panels.Values);
+            bool pointerInAnyPanel = false;
             foreach (var panel in _iteration)
             {
                 ApplyPendingFrame(panel);
                 PumpCaptureFallback(panel, now);
-                PumpPointer(panel);
+                pointerInAnyPanel |= PumpPointer(panel);
             }
+
+            // A press that lands in no document takes keyboard focus away, as a click on the page would.
+            if (EditorPointer.TryGetMouse(out _, out bool mouseDown))
+            {
+                if (mouseDown && !_mouseWasDown && !pointerInAnyPanel) _keyboardPanel = null;
+                _mouseWasDown = mouseDown;
+            }
+
+            PumpKeyboard();
         }
 
         private void HandleEvent(Dictionary<string, object> evt)
@@ -728,16 +769,19 @@ namespace WebUI.Html.Editor.Cdp
             {
                 case "Page.screencastFrame":
                 {
-                    if (sessionId == null || !_bySession.TryGetValue(sessionId, out var panel)) return;
-                    var data = Json.Str(parameters, "data");
-                    if (!string.IsNullOrEmpty(data))
+                    // Normally intercepted on the receive thread by OnScreencastFrame; this is the path for a
+                    // client without the fast path, where the payload may still be base64 text.
+                    byte[] image = null;
+                    if (parameters != null && parameters.TryGetValue("data", out var raw))
                     {
-                        try { panel.PendingFrame = Convert.FromBase64String(data); }
-                        catch (FormatException) { /* skip a malformed frame rather than tearing down */ }
+                        if (raw is byte[] bytes) image = bytes;
+                        else if (raw is string text && text.Length > 0)
+                        {
+                            try { image = Convert.FromBase64String(text); }
+                            catch (FormatException) { /* skip a malformed frame rather than tearing down */ }
+                        }
                     }
-                    // Chrome stalls the screencast until each frame is acknowledged.
-                    int ack = (int)Json.Num(parameters, "sessionId");
-                    _client.Send("Page.screencastFrameAck", "{\"sessionId\":" + ack + "}", sessionId);
+                    OnScreencastFrame(_client, sessionId, Json.Int(parameters, "sessionId"), image);
                     break;
                 }
 
@@ -760,11 +804,10 @@ namespace WebUI.Html.Editor.Cdp
                 case "Target.detachedFromTarget":
                 {
                     var gone = Json.Str(parameters, "sessionId");
-                    if (gone != null && _bySession.TryGetValue(gone, out var panel))
+                    if (gone != null && _bySession.TryRemove(gone, out var panel))
                     {
                         panel.Ready = false;
                         panel.Screencasting = false;
-                        _bySession.Remove(gone);
                     }
                     break;
                 }
@@ -788,27 +831,114 @@ namespace WebUI.Html.Editor.Cdp
 
         // ------------------------------------------------------------------ frames -> textures
 
+        /// <summary>
+        /// Receive thread. Routes a screencast frame to its panel's decoder and acknowledges it at once — Chrome
+        /// stalls the screencast until each frame is acknowledged, and nothing here needs the main thread.
+        /// </summary>
+        private void OnScreencastFrame(CdpClient client, string sessionId, int frameId, byte[] image)
+        {
+            if (sessionId == null) return;
+            if (image != null && _bySession.TryGetValue(sessionId, out var panel)) SubmitFrame(panel, image);
+            client.Send("Page.screencastFrameAck", "{\"sessionId\":" + frameId + "}", sessionId);
+        }
+
+        /// <summary>
+        /// Any thread. Hands an encoded frame to the panel's decode loop, starting one if none is running.
+        /// Only the newest undecoded frame is kept: if Chrome outpaces the decoder, intermediate frames are dropped.
+        /// </summary>
+        private static void SubmitFrame(Panel panel, byte[] png)
+        {
+            lock (panel.FrameLock)
+            {
+                panel.QueuedPng = png;
+                if (panel.Decoding) return;
+                panel.Decoding = true;
+            }
+            Task.Run(() => DecodeLoop(panel));
+        }
+
+        /// <summary>
+        /// Pool thread. Decodes frames for one panel until none are queued, so at most one decode per panel is
+        /// in flight and the decoder's scratch buffers are never shared. Pixel buffers are recycled through
+        /// <see cref="Panel.FreePixels"/>, so a steady stream of frames allocates nothing.
+        /// </summary>
+        private static void DecodeLoop(Panel panel)
+        {
+            while (true)
+            {
+                byte[] png;
+                byte[] pixels = null;
+                lock (panel.FrameLock)
+                {
+                    png = panel.QueuedPng;
+                    panel.QueuedPng = null;
+                    if (png == null)
+                    {
+                        panel.Decoding = false;
+                        return;
+                    }
+                    if (panel.FreePixels.Count > 0) pixels = panel.FreePixels.Pop();
+                }
+
+                var decoder = panel.Decoder ??= new PngDecoder();
+                bool decoded;
+                int width = 0, height = 0;
+                try { decoded = decoder.TryDecode(png, png.Length, ref pixels, out width, out height); }
+                catch (Exception) { decoded = false; }
+
+                lock (panel.FrameLock)
+                {
+                    if (decoded)
+                    {
+                        var replaced = panel.Pending;
+                        panel.Pending = new DecodedFrame { Rgba = pixels, Width = width, Height = height };
+                        panel.PendingFrame = null;
+                        if (replaced != null) RecyclePixels(panel, replaced.Rgba);
+                    }
+                    else
+                    {
+                        // Not a PNG this decoder handles; let LoadImage have a go on the main thread.
+                        if (pixels != null) RecyclePixels(panel, pixels);
+                        panel.PendingFrame = png;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Under <see cref="Panel.FrameLock"/>.</summary>
+        private static void RecyclePixels(Panel panel, byte[] pixels)
+        {
+            if (pixels != null && panel.FreePixels.Count < MaxFreePixelBuffers) panel.FreePixels.Push(pixels);
+        }
+
+        /// <summary>Main thread. Uploads the newest decoded frame and blits it into the panel's texture.</summary>
         private void ApplyPendingFrame(Panel panel)
         {
-            var bytes = panel.PendingFrame;
-            if (bytes == null) return;
-            panel.PendingFrame = null;
-            panel.LastFrameTime = NowSeconds();
-
-            if (panel.Staging == null)
+            DecodedFrame frame;
+            byte[] encoded;
+            lock (panel.FrameLock)
             {
-                // linear:true keeps LoadImage from tagging the texture sRGB, so the browser's encoded
-                // bytes reach the blit untouched and premultiplication happens in the same space the
-                // browser would have used.
-                panel.Staging = new Texture2D(2, 2, TextureFormat.RGBA32, false, true)
-                {
-                    name = "HtmlUI staging",
-                    hideFlags = HideFlags.HideAndDontSave,
-                    wrapMode = TextureWrapMode.Clamp,
-                };
+                frame = panel.Pending;
+                panel.Pending = null;
+                encoded = panel.PendingFrame;
+                panel.PendingFrame = null;
             }
+            if (frame == null && encoded == null) return;
 
-            if (!panel.Staging.LoadImage(bytes, false)) return;
+            if (frame != null)
+            {
+                EnsureStaging(panel, frame.Width, frame.Height);
+                panel.Staging.LoadRawTextureData(frame.Rgba);
+                panel.Staging.Apply(false, false);
+                lock (panel.FrameLock) RecyclePixels(panel, frame.Rgba);
+            }
+            else
+            {
+                // LoadImage resizes and reformats the texture itself; EnsureStaging puts it back next time.
+                EnsureStaging(panel, panel.TextureWidth > 0 ? panel.TextureWidth : 2, panel.TextureHeight > 0 ? panel.TextureHeight : 2);
+                if (!panel.Staging.LoadImage(encoded, false)) return;
+            }
+            panel.LastFrameTime = NowSeconds();
 
             EnsureTarget(panel, panel.Staging.width, panel.Staging.height);
             if (panel.Target == null) return;
@@ -821,6 +951,28 @@ namespace WebUI.Html.Editor.Cdp
             GL.sRGBWrite = previousSrgbWrite;
 
             if (panel.Target.useMipMap) panel.Target.GenerateMips();
+        }
+
+        /// <summary>
+        /// The staging texture is flagged linear: that is not a claim about the data, it keeps Unity from applying
+        /// an sRGB→linear conversion when the blit samples it, so the browser's encoded bytes reach the shader
+        /// untouched and premultiplication happens in the same space the browser would have used.
+        /// </summary>
+        private static void EnsureStaging(Panel panel, int width, int height)
+        {
+            if (panel.Staging == null)
+            {
+                panel.Staging = new Texture2D(width, height, TextureFormat.RGBA32, false, true)
+                {
+                    name = "HtmlUI staging",
+                    hideFlags = HideFlags.HideAndDontSave,
+                    wrapMode = TextureWrapMode.Clamp,
+                };
+            }
+            else if (panel.Staging.width != width || panel.Staging.height != height || panel.Staging.format != TextureFormat.RGBA32)
+            {
+                panel.Staging.Reinitialize(width, height, TextureFormat.RGBA32, false);
+            }
         }
 
         private void EnsureTarget(Panel panel, int width, int height)
@@ -885,6 +1037,13 @@ namespace WebUI.Html.Editor.Cdp
                 panel.Staging = null;
             }
             panel.TextureWidth = panel.TextureHeight = 0;
+            lock (panel.FrameLock)
+            {
+                panel.QueuedPng = null;
+                panel.Pending = null;
+                panel.PendingFrame = null;
+                panel.FreePixels.Clear();
+            }
         }
 
         /// <summary>
@@ -912,24 +1071,27 @@ namespace WebUI.Html.Editor.Cdp
                 "{\"format\":\"png\",\"captureBeyondViewport\":false,\"fromSurface\":true}", panel.SessionId);
             task.ContinueWith(t =>
             {
-                Post(() =>
+                // Still on the pool: decode the base64 here and join the same worker decode path as the screencast.
+                if (!t.IsFaulted && t.Result != null)
                 {
-                    panel.CaptureInFlight = false;
-                    if (t.IsFaulted || t.Result == null) return;
                     var data = Json.Str(t.Result, "data");
-                    if (string.IsNullOrEmpty(data)) return;
-                    try { panel.PendingFrame = Convert.FromBase64String(data); }
-                    catch (FormatException) { }
-                });
+                    if (!string.IsNullOrEmpty(data))
+                    {
+                        try { SubmitFrame(panel, Convert.FromBase64String(data)); }
+                        catch (FormatException) { }
+                    }
+                }
+                Post(() => panel.CaptureInFlight = false);
             }, TaskScheduler.Default);
         }
 
         // ------------------------------------------------------------------ pointer input
 
-        private void PumpPointer(Panel panel)
+        /// <summary>Returns whether the pointer is over the panel this frame.</summary>
+        private bool PumpPointer(Panel panel)
         {
-            if (!panel.Ready || !Connected || !panel.HasGeometry || !panel.Visible) return;
-            if (!EditorPointer.TryGetMouse(out var screenPosition, out bool buttonDown)) return;
+            if (!panel.Ready || !Connected || !panel.HasGeometry || !panel.Visible) return false;
+            if (!EditorPointer.TryGetMouse(out var screenPosition, out bool buttonDown)) return false;
 
             bool inside = TryProjectToPanel(panel, screenPosition, out var documentPoint);
             documentPoint.x = Mathf.Clamp(documentPoint.x, 0, panel.Width);
@@ -943,7 +1105,7 @@ namespace WebUI.Html.Editor.Cdp
                     panel.PointerInside = false;
                     DispatchMouse(panel, "mouseMoved", documentPoint, 0, false);
                 }
-                return;
+                return false;
             }
             panel.PointerInside = inside;
 
@@ -956,6 +1118,7 @@ namespace WebUI.Html.Editor.Cdp
             if (buttonDown && !panel.PointerDown)
             {
                 panel.PointerDown = true;
+                _keyboardPanel = panel;
                 DispatchMouse(panel, "mousePressed", documentPoint, 1, true);
             }
             else if (!buttonDown && panel.PointerDown)
@@ -963,6 +1126,7 @@ namespace WebUI.Html.Editor.Cdp
                 panel.PointerDown = false;
                 DispatchMouse(panel, "mouseReleased", documentPoint, 0, true);
             }
+            return inside;
         }
 
         private void DispatchMouse(Panel panel, string type, Vector2 point, int buttons, bool leftButton)
@@ -975,6 +1139,116 @@ namespace WebUI.Html.Editor.Cdp
                 ",\"buttons\":" + buttons +
                 ",\"clickCount\":" + (type == "mousePressed" || type == "mouseReleased" ? 1 : 0) +
                 "}", panel.SessionId);
+        }
+
+        // ------------------------------------------------------------------ keyboard input
+
+        /// <summary>Forwards the frame's key presses to the document the last click landed in.</summary>
+        private void PumpKeyboard()
+        {
+            if (!_keyboardCapturing)
+            {
+                if (!Application.isPlaying) return;
+                HtmlBackend.SetKeyboardCapture(true);
+                _keyboardCapturing = true;
+                return;
+            }
+
+            _keys.Clear();
+            HtmlBackend.DrainKeyPresses(_keys);
+            if (_keys.Count == 0) return;
+
+            var panel = _keyboardPanel;
+            if (panel != null && panel.Ready && Connected && _panels.ContainsKey(panel.Id))
+                foreach (var press in _keys) DispatchKey(panel, press);
+            _keys.Clear();
+        }
+
+        /// <summary>
+        /// Turns an IMGUI key event into the DevTools key events Chrome expects. The shape follows what Puppeteer
+        /// sends: a <c>keyDown</c> carrying <c>text</c> inserts the character and fires the page's keydown, keypress
+        /// and input events; a <c>rawKeyDown</c> fires keydown alone, for keys that produce no text.
+        /// </summary>
+        private void DispatchKey(Panel panel, HtmlKeyPress press)
+        {
+            string key, code, text = null;
+            int virtualKey;
+
+            if (press.Character != '\0' && !char.IsControl(press.Character))
+            {
+                // A typed character. Where IMGUI also reports the key itself as a separate event, that event has
+                // no character and falls through the branches below without producing anything.
+                key = press.Character.ToString();
+                text = key;
+                DescribeCharacter(press.Character, out code, out virtualKey);
+            }
+            else if (TryDescribeSpecialKey(press.Key, out key, out code, out virtualKey, out text))
+            {
+            }
+            else if ((press.Ctrl || press.Meta) && press.Key >= KeyCode.A && press.Key <= KeyCode.Z)
+            {
+                // Shortcuts: select-all, copy, paste, undo. Chrome maps these from the virtual key and modifiers.
+                char letter = (char)('a' + (press.Key - KeyCode.A));
+                key = letter.ToString();
+                DescribeCharacter(letter, out code, out virtualKey);
+            }
+            else
+            {
+                return;
+            }
+
+            int modifiers = (press.Alt ? 1 : 0) | (press.Ctrl ? 2 : 0) | (press.Meta ? 4 : 0) | (press.Shift ? 8 : 0);
+            var common = ",\"key\":" + Json.Quote(key) +
+                         ",\"code\":" + Json.Quote(code) +
+                         ",\"windowsVirtualKeyCode\":" + virtualKey +
+                         ",\"nativeVirtualKeyCode\":" + virtualKey +
+                         ",\"modifiers\":" + modifiers;
+
+            var down = new StringBuilder("{\"type\":").Append(text != null ? "\"keyDown\"" : "\"rawKeyDown\"").Append(common);
+            if (text != null)
+            {
+                down.Append(",\"text\":");
+                Json.Quote(text, down);
+                down.Append(",\"unmodifiedText\":");
+                Json.Quote(text, down);
+            }
+            down.Append('}');
+            _client.Send("Input.dispatchKeyEvent", down.ToString(), panel.SessionId);
+            _client.Send("Input.dispatchKeyEvent", "{\"type\":\"keyUp\"" + common + "}", panel.SessionId);
+        }
+
+        private static void DescribeCharacter(char c, out string code, out int virtualKey)
+        {
+            if (c >= 'a' && c <= 'z') { code = "Key" + char.ToUpperInvariant(c); virtualKey = char.ToUpperInvariant(c); }
+            else if (c >= 'A' && c <= 'Z') { code = "Key" + c; virtualKey = c; }
+            else if (c >= '0' && c <= '9') { code = "Digit" + c; virtualKey = c; }
+            else if (c == ' ') { code = "Space"; virtualKey = 32; }
+            else { code = string.Empty; virtualKey = 0; }
+        }
+
+        /// <summary>Keys that produce no character but that pages and form controls react to.</summary>
+        private static bool TryDescribeSpecialKey(KeyCode keyCode, out string key, out string code, out int virtualKey, out string text)
+        {
+            text = null;
+            switch (keyCode)
+            {
+                case KeyCode.Backspace: key = code = "Backspace"; virtualKey = 8; return true;
+                case KeyCode.Tab: key = code = "Tab"; virtualKey = 9; return true;
+                case KeyCode.Return:
+                case KeyCode.KeypadEnter: key = code = "Enter"; virtualKey = 13; text = "\r"; return true;
+                case KeyCode.Escape: key = code = "Escape"; virtualKey = 27; return true;
+                case KeyCode.PageUp: key = code = "PageUp"; virtualKey = 33; return true;
+                case KeyCode.PageDown: key = code = "PageDown"; virtualKey = 34; return true;
+                case KeyCode.End: key = code = "End"; virtualKey = 35; return true;
+                case KeyCode.Home: key = code = "Home"; virtualKey = 36; return true;
+                case KeyCode.LeftArrow: key = code = "ArrowLeft"; virtualKey = 37; return true;
+                case KeyCode.UpArrow: key = code = "ArrowUp"; virtualKey = 38; return true;
+                case KeyCode.RightArrow: key = code = "ArrowRight"; virtualKey = 39; return true;
+                case KeyCode.DownArrow: key = code = "ArrowDown"; virtualKey = 40; return true;
+                case KeyCode.Insert: key = code = "Insert"; virtualKey = 45; return true;
+                case KeyCode.Delete: key = code = "Delete"; virtualKey = 46; return true;
+                default: key = code = null; virtualKey = 0; return false;
+            }
         }
 
         /// <summary>

@@ -483,8 +483,20 @@ namespace WebUI.Html
                 return;
             }
 
+            if (!_ownsTexture)
+            {
+                // The backend that owned the texture has been unregistered (the Editor preview stops as play
+                // mode ends) and released it with everything else it owned. Drop the dead reference rather
+                // than touching it; the next Create() allocates afresh.
+                bool hadTexture = !ReferenceEquals(_texture, null);
+                _texture = null;
+                _ownsTexture = true;
+                if (hadTexture) TextureChanged?.Invoke(this);
+                return;
+            }
+
             if (!mipmaps) return;
-            if (_texture is RenderTexture rt && rt.useMipMap && HtmlNative.HtmlUI_PanelTakeUpdated(_panel) != 0)
+            if (_texture is RenderTexture rt && rt != null && rt.useMipMap && HtmlNative.HtmlUI_PanelTakeUpdated(_panel) != 0)
                 rt.GenerateMips();
         }
 
