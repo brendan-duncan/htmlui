@@ -21,7 +21,7 @@ The package itself, with its own README, lives at [Packages/com.brendan.hiccup](
 
 ![Hiccup](hiccup.png)
 
-## Sample
+## Samples
 
 ### HTML UI
 Use of HTML as a UI system, including world-space UI.
