@@ -19,6 +19,12 @@
   IMGUI events relayed as DevTools key events. Text fields, Enter, Backspace, arrows, Escape and Ctrl shortcuts
   work; IME and composed input do not.
 
+- **Assets ▸ Create ▸ HTML UI ▸ HTML Document** and **Style Sheet**: new `.html` fragments and `.css` style sheets
+  from the Project window, with the usual inline rename and a small starter template.
+- `.html` and `.css` assets carry their own Project window icons (orange `<>`, blue `{}`). `.html` now goes through
+  the package's `HtmlImporter`, selected per asset by an `AssetPostprocessor` because Unity's text importer owns the
+  extension by default; the result is still a `TextAsset`.
+
 ### Fixed
 - Stopping play mode no longer throws `MissingReferenceException` from `HtmlDocument.AfterBridgeUpdate`: a
   document drops its backend-owned texture once the backend that created it has been unregistered.

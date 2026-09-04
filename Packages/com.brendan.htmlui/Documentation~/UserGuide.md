@@ -12,11 +12,11 @@ This guide is task-oriented. For the mechanism, see [Runtime.md](Runtime.md); fo
 - [Setup](#setup)
 - [Your first HUD](#your-first-hud)
 - [Writing the HTML and CSS](#writing-the-html-and-css)
+- [Size and placement](#size-and-placement)
 - [Reacting to the UI](#reacting-to-the-ui)
 - [Updating the UI](#updating-the-ui)
 - [Panels in the 3D scene](#panels-in-the-3d-scene)
 - [Input and click-through](#input-and-click-through)
-- [Sizing and sharpness](#sizing-and-sharpness)
 - [Accessibility](#accessibility)
 - [Working in the Editor](#working-in-the-editor)
 - [Performance](#performance)
@@ -59,8 +59,16 @@ form with ARIA tabs, inventory listbox, HUD, `<dialog>` modals, toasts, themes, 
 
 ## Your first HUD
 
-Three pieces: a `TextAsset` of HTML, a `TextAsset` of CSS, and a GameObject carrying `HtmlDocument` plus a
-surface.
+Three pieces: a `TextAsset` of HTML, a `TextAsset` of CSS, and a GameObject in a Canvas carrying `HtmlDocument`,
+`HtmlScreenSurface` and your own script. Nothing else: the bridge (`HtmlRuntime`) creates itself the first time a
+document is enabled.
+
+### 1. The content
+
+In the Project window choose **Create ▸ HTML UI ▸ HTML Document** and **Create ▸ HTML UI ▸ Style Sheet** (also
+under **Assets ▸ Create**). Each starts as a small template; replace it with the snippets below. A `.html` or
+`.css` file copied in from elsewhere works the same way. Both show up with their own icons in the Project window
+(orange `<>` for HTML, blue `{}` for CSS) and in the Inspector's object fields.
 
 **`Hud.html`** — a body fragment, not a whole document. No `<html>`, `<head>` or `<body>`.
 
@@ -83,48 +91,107 @@ surface.
 button { font: inherit; padding: 6px 14px; border-radius: 8px; }
 ```
 
-**In the scene.** Add a UI ▸ Raw Image under a Canvas, then add `HtmlDocument` and `HtmlScreenSurface` to it.
-Assign the two TextAssets to the document's **Html** and **Style Sheets** fields.
+### 2. The scene
 
-**In C#:**
+1. **GameObject ▸ UI ▸ Canvas.** Leave **Render Mode** at *Screen Space - Overlay*. (Screen Space - Camera and
+   World Space work too; the surface reads the Canvas' camera.)
+2. **GameObject ▸ UI ▸ Raw Image** as a child of the Canvas. Rename it `HUD`. Leave its **Texture** and
+   **Material** empty; the surface fills both in at runtime.
+3. Make it fill the Canvas: in the Rect Transform anchor preset picker choose the bottom-right *stretch/stretch*
+   preset, then set Left/Right/Top/Bottom to 0. This rectangle *is* the document: it is sized to it every
+   frame and your CSS positions things relative to its corners (see [Size and placement](#size-and-placement)).
+4. **Add Component ▸ HTML UI ▸ HTML Document.** Drag `Hud.html` onto **Html** and `Hud.css` into
+   **Style Sheets** (set the array size to 1 first, or drop the asset onto the array header).
+5. **Add Component ▸ HTML UI ▸ HTML Screen Surface.** Its **Document** field may be left empty: it picks up the
+   `HtmlDocument` on the same GameObject.
+
+The Inspector on `HtmlDocument` shows an info box telling you whether the Editor preview is on; either way the
+scene is complete at this point. The remaining fields have sensible defaults for a HUD (**Pointer Mode**
+*ChildrenOnly*, so clicks on empty HUD space still reach the game).
+
+### 3. The script
+
+Create `Hud.cs` and add it to the same `HUD` GameObject (step 5 above). It finds the document on its own
+GameObject, so there is nothing to drag; if you keep the script somewhere else, assign **Doc** in the Inspector.
 
 ```csharp
+using UnityEngine;
 using HtmlUI;
 
 public class Hud : MonoBehaviour
 {
-    [SerializeField] HtmlDocument doc;
+    [SerializeField] HtmlDocument doc;   // left empty: uses the HtmlDocument on this GameObject
     int score;
 
     void OnEnable()
     {
-        doc.OnAction("pause", e => Time.timeScale = 0f);
+        if (doc == null) doc = GetComponent<HtmlDocument>();
+
+        // Event handlers can be registered at any time; they are kept until the panel exists.
+        doc.OnAction("pause", OnPause);
+
+        // Element access (Q, QAll, Eval) needs the browser-side panel, which HtmlDocument creates in its own
+        // OnEnable. Component OnEnable order is not guaranteed, so wait for Created if it is not there yet.
+        if (doc.IsCreated) Refresh(doc);
+        else doc.Created += Refresh;
     }
 
+    void OnDisable()
+    {
+        doc.Created -= Refresh;
+        doc.OffAction("pause", OnPause);
+    }
+
+    // Called by your game code, e.g. from a pickup's OnTriggerEnter.
     public void AddScore(int amount)
     {
         score += amount;
-        doc.Q("#score").Text = score.ToString();
+        if (doc.IsCreated) Refresh(doc);
     }
+
+    void OnPause(HtmlEvent e) => Time.timeScale = 0f;
+
+    void Refresh(HtmlDocument d) => d.Q("#score").Text = score.ToString();
 }
 ```
 
-Build for Web and open it in Chrome. Press **Tab** — the focus ring appears inside the Unity frame. Press
+Two rules fall out of this, and they apply to every script you write against a document:
+
+* **Register handlers whenever you like.** `On`, `OnAction` and `Listen` queue their subscriptions and apply
+  them when the panel is created, so `OnEnable` or `Awake` are both fine.
+* **Touch elements only after `IsCreated`.** Before that, `Q` returns a no-op handle and `Eval` returns an empty
+  string, silently. Subscribe to `Created` for initial state, as above; the sample's controllers use the same
+  `IsCreated ? Wire : Created += Wire` shape.
+
+### 4. Run it
+
+Press **Play**. With **Window ▸ HTML UI ▸ Editor Preview (Chrome)** on, the Game view shows the real HUD
+rendered by Chrome, and the Pause button works. With the preview off the surface draws a placeholder so you can
+still check the layout of everything around it.
+
+Then build for Web and open it in Chrome. Press **Tab** — the focus ring appears inside the Unity frame. Press
 **Ctrl+F** and search for "Score" — the browser finds it.
 
-To build the same thing from code, deactivate the GameObject while configuring so `OnEnable` sees the finished
-setup:
+### From code instead of the Inspector
+
+Deactivate the GameObject while configuring so `HtmlDocument.OnEnable` sees the finished setup:
 
 ```csharp
 var go = new GameObject("HUD", typeof(RectTransform), typeof(RawImage));
 go.SetActive(false);
 go.transform.SetParent(canvas.transform, false);
+var rect = go.GetComponent<RectTransform>();
+rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+rect.offsetMin = Vector2.zero; rect.offsetMax = Vector2.zero;
 var doc = go.AddComponent<HtmlDocument>();
-doc.Html = hudHtml;
-doc.StyleSheets = new[] { hudCss };
+doc.Html = hudHtml;                       // TextAsset
+doc.StyleSheets = new[] { hudCss };       // TextAsset[]
 go.AddComponent<HtmlScreenSurface>();
+go.AddComponent<Hud>();
 go.SetActive(true);
 ```
+
+`HtmlUISampleBootstrap.cs` in the sample builds its whole scene this way, HUD and world panel included.
 
 ## Writing the HTML and CSS
 
@@ -158,6 +225,44 @@ root a background if you want the UI opaque.
 
 **Multiple stylesheets** are concatenated in array order, then `Extra Css` from the inspector is appended last —
 handy for per-instance overrides such as a theme variable block.
+
+## Size and placement
+
+**The Raw Image's rectangle is the document.** `HtmlScreenSurface` measures the RectTransform in screen pixels
+every frame and, with **Size Document To Rect** on (the default), resizes the document to match. The browser
+lays your HTML out in a box exactly that size, snapshots it into a texture, and the Raw Image draws the texture
+back into the same rectangle. So:
+
+* **CSS coordinates start at the rectangle's top-left corner.** `position: absolute; top: 16px; left: 16px`
+  is 16 CSS pixels in from the corner of the Raw Image, wherever the Raw Image sits on screen. Your root
+  (`.hui-content`) already fills the box, so flexbox and grid work against its edges too.
+* **A Raw Image the size of the screen gives you a screen-sized document.** Position the HUD's parts in CSS.
+  A small Raw Image in a corner gives you a small document; put a second `HtmlDocument` + `HtmlScreenSurface`
+  on another Raw Image for a second, independent panel. Several small panels are cheaper to update than one
+  full-screen one (see [Performance](#performance)).
+* **The document is measured in CSS pixels.** One CSS pixel is one screen pixel divided by the browser's
+  device pixel ratio, so on a 2x display a 1920-pixel-wide rectangle is a 960 CSS pixel document — the same
+  numbers a web page sees in that browser. `HtmlRuntime.Instance.CssPerScreenPixel` is the conversion.
+* **The Canvas Scaler changes the rectangle, not your CSS.** Under *Scale With Screen Size* a stretched Raw
+  Image simply covers more or fewer CSS pixels; text stays the size your CSS says. For UI that should grow with
+  the screen, write responsive CSS (`vw`/`vmin` units, `clamp()`, container queries) — or turn **Size Document
+  To Rect** off, set **Size** to a fixed design resolution, and let the Raw Image stretch the texture. Hit
+  testing and screen-reader bounds follow the stretched rectangle either way.
+* **Leave the Raw Image's Color white and its Material empty.** The surface assigns the package's premultiplied
+  UI material at runtime; the colour tints the whole document.
+
+**World panels** work the other way round: **Size** on the document is the CSS pixel size, and the Quad's scale
+is its size in the world. Keep their aspect ratios equal or the texture stretches; **Pixels Per Unit** on the
+surface derives the size from the mesh instead. See [Panels in the 3D scene](#panels-in-the-3d-scene).
+
+**Sharpness.** The texture is `size × devicePixelRatio × resolutionScale`.
+
+* `ResolutionScale` supersamples. Leave it at 1 for screen-space UI; use 2 for world panels or anything viewed
+  minified or at an angle.
+* `Mipmaps` on means trilinear + anisotropic sampling. Keep it for world panels; you can turn it off for a
+  pixel-exact full-screen overlay.
+* CSS media and container queries respond to the document size, so a HUD resized with its rectangle can
+  re-flow rather than shrink.
 
 ## Reacting to the UI
 
@@ -236,18 +341,38 @@ A single `doc.Q("#x").Text = "…"` in an update loop is fine; a hundred undispo
 
 ## Panels in the 3D scene
 
-Use `HtmlWorldSurface` instead of `HtmlScreenSurface`: put `HtmlDocument` + `HtmlWorldSurface` on a Quad. The
-surface derives the document's screen transform from the camera every frame, so the browser hit-tests the
-*projected* DOM — a form on a tilted panel is clickable where you see it, and a screen reader reports the right
-bounds.
+Use `HtmlWorldSurface` instead of `HtmlScreenSurface`. The surface derives the document's screen transform from
+the camera every frame, so the browser hit-tests the *projected* DOM — a form on a tilted panel is clickable
+where you see it, and a screen reader reports the right bounds.
+
+**In the scene:**
+
+1. **GameObject ▸ 3D Object ▸ Quad.** Scale it to the panel's size in world units; the document is drawn across
+   the whole front face. Delete the Mesh Collider unless you want the quad to block raycasts (HTML hit testing
+   does not use it).
+2. **Add Component ▸ HTML UI ▸ HTML Document.** Assign **Html** and **Style Sheets** as for a HUD, and set
+   **Size** to the document's CSS pixel size; the quad's aspect ratio should match it. Set **Resolution Scale**
+   to 2 and leave **Mipmaps** on. For a panel that should take every click, set **Pointer Mode** to *Panel*.
+3. **Add Component ▸ HTML UI ▸ HTML World Surface.** **Target Camera** defaults to `Camera.main`. The quad's
+   material is replaced at runtime by the package's unlit premultiplied material, so whatever is on the
+   MeshRenderer does not matter.
+4. Add your controller script to the quad. It is written exactly like the HUD script above.
+
+**From code:**
 
 ```csharp
 var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+quad.SetActive(false);
+Destroy(quad.GetComponent<Collider>());
+quad.transform.localScale = new Vector3(3.6f, 2.5f, 1f);
 var doc  = quad.AddComponent<HtmlDocument>();
 doc.Html = consoleHtml;
+doc.StyleSheets = new[] { consoleCss };
+doc.Size = new Vector2Int(576, 400);           // same aspect as the quad
 doc.ResolutionScale = 2f;                       // supersample; it will be viewed at an angle
 var surface = quad.AddComponent<HtmlWorldSurface>();
-surface.TargetCamera = Camera.main;             // defaults to Camera.main
+surface.TargetCamera = Camera.main;             // the default; shown for clarity
+quad.SetActive(true);
 ```
 
 Set **Pixels Per Unit** above zero on the surface to derive the document size from the mesh bounds instead of
@@ -269,18 +394,6 @@ it on unless you specifically want both to see the same click. It is also what m
 
 **Prevent Form Submit** (on by default) calls `preventDefault()` on `submit` so a form never navigates the page
 away from your game. Submit events still reach your handlers.
-
-## Sizing and sharpness
-
-Document **Size** is in **CSS pixels**, not device pixels. The texture is
-`size × devicePixelRatio × resolutionScale`.
-
-* `HtmlScreenSurface` with **Size Document To Rect** on (default) resizes the document to the RectTransform every
-  frame, so a responsive HUD just works — and CSS media/container queries respond to it.
-* `ResolutionScale` supersamples. Leave it at 1 for screen-space UI; use 2 for world panels or anything viewed
-  minified or at an angle.
-* `Mipmaps` on means trilinear + anisotropic sampling. Keep it for world panels; you can turn it off for a
-  pixel-exact full-screen overlay.
 
 ## Accessibility
 
@@ -316,8 +429,9 @@ any of this.
 Play mode renders documents through a real Chrome, so you can iterate without building. Layout, styling, script
 behaviour, mouse input and events are all genuine. Toggles live under **Window ▸ HTML UI**.
 
-It cannot show you accessibility, IME, or HTML-in-Canvas compositing, and keyboard input is not yet wired up. It
-is a fast iteration loop, not a substitute for testing a build. See [EditorPreview.md](EditorPreview.md).
+Keys typed in the Game view reach the document the last click landed in, so text fields and shortcuts work; IME
+and composed input do not. It cannot show you accessibility or HTML-in-Canvas compositing either. It is a fast
+iteration loop, not a substitute for testing a build. See [EditorPreview.md](EditorPreview.md).
 
 ## Performance
 
