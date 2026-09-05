@@ -1,7 +1,10 @@
 {
     "name": "Hiccup",
     "rootNamespace": "Hiccup",
-    "references": [],
+    "references": [
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

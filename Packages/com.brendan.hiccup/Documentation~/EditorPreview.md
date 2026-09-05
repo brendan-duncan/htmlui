@@ -324,7 +324,9 @@ that touches six elements is one web socket message.
 **Reads block**, briefly. `Value`, `GetAttribute`, `Checked`, `HasClass`, `Bounds`, `Matches`, `Id` and `QAll`
 need an answer, so they wait up to 100 ms on a `Runtime.evaluate` (sub-millisecond in practice against a local
 browser). Every read flushes that document's pending writes first, so a read always observes its own writes.
-`HtmlDocument.Eval` works the same way with a 250 ms budget.
+`HtmlDocument.Eval` works the same way with a 250 ms budget. The code is wrapped as a function body taking
+`panel`, `root` and `HUI`, matching the jslib's `new Function('panel','root','HUI', code)`: statements are fine,
+and a value comes back only through `return`.
 
 The handle table is bounded at 8192 entries and evicts oldest-first, because `HtmlElement.Dispose` is optional
 and `Q()` is cheap enough to call in a loop. Handles are used within a frame of being created, so eviction is not

@@ -22,6 +22,7 @@ interactive, just not composited into the Unity frame). The Editor shows placeho
 | [Documentation~/UserGuide.md](Documentation~/UserGuide.md) | Building UI with the package: setup, authoring, events, world panels, accessibility, troubleshooting. |
 | [Documentation~/Runtime.md](Documentation~/Runtime.md) | How the web build works: the bridge, the paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing, input isolation. |
 | [Documentation~/EditorPreview.md](Documentation~/EditorPreview.md) | How the Editor renders documents through a real Chrome over the DevTools Protocol. |
+| [Documentation~/UguiMirror.md](Documentation~/UguiMirror.md) | Experimental: mirroring an existing uGUI canvas into a document, component by component, and where that stops. |
 
 ## Requirements
 
@@ -70,6 +71,7 @@ document's screen transform from the camera every frame so the browser hit-tests
 | `HtmlScreenSurface` | Draws the document through a uGUI `RawImage` (requires the `Hiccup/UI Premultiplied` shader, assigned automatically) and syncs geometry to the RectTransform. |
 | `HtmlWorldSurface` | Draws the document on a mesh with `Hiccup/Unlit Premultiplied` and syncs perspective geometry. |
 | `HtmlRuntime` | Auto-created singleton that ticks the bridge; exposes `Mode`, `Features`, canvas size and DPR. |
+| `HtmlUguiMirror` | Experimental. Mirrors a uGUI `Canvas` into a document every frame: rectangles, images, text, native controls for Toggle/Slider/InputField/Dropdown, browser scrolling for ScrollRect. See [Documentation~/UguiMirror.md](Documentation~/UguiMirror.md). |
 
 ## API sketch
 

@@ -427,9 +427,10 @@ namespace Hiccup.Editor.Cdp
         {
             if (!_panels.TryGetValue(id, out var p) || !p.Ready || !Connected) return string.Empty;
 
-            // Give the caller the same synchronous contract the jslib has, at the cost of a short block.
-            var wrapped = "(function(){var panel=window.__HUI.panel,root=window.__HUI.content,HUI=window.__HUI;return ("
-                          + javascript + ");})()";
+            // Give the caller the same synchronous contract the jslib has, at the cost of a short block. The code is a
+            // function body, exactly as Hiccup_PanelEval's `new Function('panel','root','HUI', code)` treats it: statements
+            // are allowed and a value comes back only through `return`.
+            var wrapped = "(function(panel,root,HUI){" + javascript + "\n})(window.__HUI.panel,window.__HUI.content,window.__HUI)";
             var task = EvaluateAsync(_client, p.SessionId, wrapped);
             if (!task.Wait(250)) return string.Empty;
 

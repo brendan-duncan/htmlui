@@ -42,6 +42,7 @@ https://brendan-duncan.github.io/hiccup/build/multiengine
 | [Packages/com.brendan.hiccup/Documentation~/](Packages/com.brendan.hiccup/Documentation~/) | User guide, runtime internals, Editor preview internals. |
 | [Assets/Samples/Hiccup/0.1.0/Full UI Sample/](Assets/Samples/Hiccup/0.1.0/Full%20UI%20Sample/) | The main sample, "Orbital Salvage": menu, settings, HUD, inventory, dialogs, a world-space console. |
 | [Assets/Samples/Hiccup/0.1.0/Three.js Desk/](Assets/Samples/Hiccup/0.1.0/Three.js%20Desk/) | A three.js page on a monitor: a same-origin iframe painted by HTML-in-Canvas onto a world-space quad, driven by a mouse you drag around the desk. |
+| [Assets/Samples/Hiccup/0.1.0/uGUI Mirror/](Assets/Samples/Hiccup/0.1.0/uGUI%20Mirror/) | Experimental: an ordinary uGUI form built in code and mirrored into a document by `HtmlUguiMirror`, so it is drawn and clicked as DOM. |
 | [Assets/WebGLTemplates/Hiccup/](Assets/WebGLTemplates/Hiccup/) | WebGL template with a full-window canvas and the Origin Trial `<meta>` placeholder. |
 
 ## Getting started
@@ -91,6 +92,7 @@ you want them there. They show what the package expects of your HTML, CSS and C#
 | [UserGuide.md](Packages/com.brendan.hiccup/Documentation~/UserGuide.md) | Authoring UI: setup, HTML and CSS conventions, events, updates, world panels, input, accessibility, troubleshooting. |
 | [Runtime.md](Packages/com.brendan.hiccup/Documentation~/Runtime.md) | The web build: the bridge, paint model, texture transport on WebGL2 and WebGPU, geometry and hit testing. |
 | [EditorPreview.md](Packages/com.brendan.hiccup/Documentation~/EditorPreview.md) | The Editor: Chrome over DevTools, the frame pipeline, pointer and keyboard relay, the element handle model. |
+| [UguiMirror.md](Packages/com.brendan.hiccup/Documentation~/UguiMirror.md) | Experimental: mirroring a uGUI canvas into a document, the component-by-component mapping, and its limits. |
 | [CHANGELOG.md](Packages/com.brendan.hiccup/CHANGELOG.md) | What changed, and what is unreleased. |
 
 ## Status

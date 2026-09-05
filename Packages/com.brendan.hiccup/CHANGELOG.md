@@ -2,7 +2,22 @@
 
 ## Unreleased
 
+### Added (experimental)
+- `HtmlUguiMirror` (`Hiccup.Ugui`): mirrors a uGUI `Canvas` into an `HtmlDocument` after every layout pass, so an
+  existing uGUI interface is drawn and interacted with as DOM while uGUI keeps running underneath. RectTransforms
+  become absolutely positioned elements, Images become tinted PNG backgrounds (`border-image` for sliced,
+  `clip-path`/conic masks for fills), Text and TMP become styled text with rich-text conversion, Buttons become
+  `<button>`, Toggle/Slider/Dropdown/InputField get native controls that write back to the components, ScrollRect
+  viewports scroll in the browser with the offset written to `content.anchoredPosition`, and Selectable pointer
+  transitions are driven from DOM pointer events. The Hiccup assembly now references `UnityEngine.UI` and
+  `Unity.TextMeshPro` explicitly. See `Documentation~/UguiMirror.md` for the mapping and the limits, and the
+  **uGUI Mirror** sample under `Assets/Samples/Hiccup`.
+
 ### Fixed
+- Editor preview: `HtmlDocument.Eval` wrapped the code as a single expression (`return (code)`), so any script with
+  more than one statement, a `var`, or a trailing semicolon failed silently — the Full UI Sample's tooltip
+  dismissal and settings reset among them. It is now evaluated as a function body with `panel`, `root` and `HUI`
+  parameters, exactly as `Hiccup_PanelEval` does in the jslib; a value comes back through `return`.
 - Editor preview: content written from `HtmlDocument.Created` was lost. `Created` fired synchronously inside
   `Create()` while Chrome was still starting, and the CDP backend drops element writes, `Eval` and `Announce`
   until its page is ready, so anything a controller built at wire-up time (the Full UI Sample's inventory grid,
