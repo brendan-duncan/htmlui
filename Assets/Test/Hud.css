@@ -1,6 +1,0 @@
-.hud {
-  position: absolute; inset: 16px auto auto 16px;
-  display: flex; gap: 12px; align-items: center;
-  font: 600 16px/1 system-ui, sans-serif; color: #e8ecf3;
-}
-button { font: inherit; padding: 6px 14px; border-radius: 8px; }
