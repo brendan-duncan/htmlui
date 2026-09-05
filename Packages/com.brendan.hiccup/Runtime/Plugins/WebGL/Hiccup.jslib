@@ -883,6 +883,8 @@ var HiccupLibrary = {
 
   Hiccup_PanelCreate: function (w, h) { return HUI.createPanel(w, h); },
   Hiccup_PanelDestroy: function (id) { HUI.destroyPanel(id); },
+  // The DOM exists the moment the panel does, so a panel is ready as soon as it is created.
+  Hiccup_PanelIsReady: function (id) { return HUI.panel(id) ? 1 : 0; },
   Hiccup_PanelSetHtml: function (id, htmlPtr) { var p = HUI.panel(id); if (p) HUI.setHtml(p, UTF8ToString(htmlPtr)); },
   Hiccup_PanelSetCss: function (id, cssPtr) { var p = HUI.panel(id); if (p) HUI.setCss(p, UTF8ToString(cssPtr)); },
   Hiccup_PanelSetSize: function (id, w, h) { var p = HUI.panel(id); if (p) HUI.setSize(p, w, h); },

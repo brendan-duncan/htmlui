@@ -132,6 +132,7 @@ namespace Hiccup
         public float CssPerScreenPixel => (Screen.width > 0 && CanvasCssSize.x > 0) ? CanvasCssSize.x / Screen.width : 1f;
 
         private readonly Dictionary<int, HtmlDocument> _documents = new Dictionary<int, HtmlDocument>();
+        private readonly List<HtmlDocument> _updating = new List<HtmlDocument>();
         private readonly float[] _info = new float[5];
 
         private void Initialize()
@@ -194,7 +195,10 @@ namespace Hiccup
         {
             RefreshCanvasInfo();
             HtmlNative.Hiccup_Update();
-            foreach (var doc in _documents.Values)
+            // Snapshot: AfterBridgeUpdate can raise Created, whose handlers may create or destroy documents.
+            _updating.Clear();
+            _updating.AddRange(_documents.Values);
+            foreach (var doc in _updating)
                 if (doc != null) doc.AfterBridgeUpdate();
         }
 

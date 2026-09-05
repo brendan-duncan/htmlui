@@ -43,6 +43,7 @@ namespace Hiccup.Editor.Cdp
             public string Css = string.Empty;
 
             public bool Ready;                     // bridge injected; commands can be sent directly
+            public bool SetupFailed;               // the page could not be created; it will never become Ready
             public double ReadyTime;
             public bool Screencasting;
 
@@ -220,6 +221,17 @@ namespace Hiccup.Editor.Cdp
                 _client.Send("Target.closeTarget", "{\"targetId\":" + Json.Quote(panel.TargetId) + "}");
         }
 
+        /// <summary>
+        /// A panel is ready once its page has loaded and the bridge is installed. If the browser or the page setup
+        /// failed it reports ready as well, so <see cref="HtmlDocument"/> still raises <c>Created</c> and the
+        /// scene behaves as it does with no preview at all.
+        /// </summary>
+        public bool PanelIsReady(int id)
+        {
+            if (!_panels.TryGetValue(id, out var panel)) return true;   // unknown panel: nothing to wait for
+            return panel.Ready || panel.SetupFailed || _failed;
+        }
+
         /// <summary>Creates the browser target for a panel and injects the bridge. Runs off the main thread.</summary>
         private void BeginPanelSetup(Panel panel)
         {
@@ -278,7 +290,12 @@ namespace Hiccup.Editor.Cdp
             catch (OperationCanceledException) { }
             catch (Exception e)
             {
-                Post(() => Debug.LogWarning($"[Hiccup] Editor preview could not create a page for document {panel.Id}: {e.Message}"));
+                Post(() =>
+                {
+                    // Let the document wire up anyway (its writes become no-ops) rather than hold Created forever.
+                    panel.SetupFailed = true;
+                    Debug.LogWarning($"[Hiccup] Editor preview could not create a page for document {panel.Id}: {e.Message}");
+                });
             }
         }
 

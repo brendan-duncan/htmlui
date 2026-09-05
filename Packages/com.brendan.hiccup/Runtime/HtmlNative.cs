@@ -51,6 +51,7 @@ namespace Hiccup
 
         [DllImport("__Internal")] public static extern int Hiccup_PanelCreate(int w, int h);
         [DllImport("__Internal")] public static extern void Hiccup_PanelDestroy(int id);
+        [DllImport("__Internal")] public static extern int Hiccup_PanelIsReady(int id);
         [DllImport("__Internal")] public static extern void Hiccup_PanelSetHtml(int id, string html);
         [DllImport("__Internal")] public static extern void Hiccup_PanelSetCss(int id, string css);
         [DllImport("__Internal")] public static extern void Hiccup_PanelSetSize(int id, int w, int h);
@@ -143,6 +144,8 @@ namespace Hiccup
 
         public static int Hiccup_PanelCreate(int w, int h) => HtmlBackend.Current?.PanelCreate(w, h) ?? _nextPanel++;
         public static void Hiccup_PanelDestroy(int id) => HtmlBackend.Current?.PanelDestroy(id);
+        // No backend: the no-op panel is "ready" at once, so IsCreated and Created keep their old timing.
+        public static int Hiccup_PanelIsReady(int id) => (HtmlBackend.Current?.PanelIsReady(id) ?? true) ? 1 : 0;
         public static void Hiccup_PanelSetHtml(int id, string html) => HtmlBackend.Current?.PanelSetHtml(id, html);
         public static void Hiccup_PanelSetCss(int id, string css) => HtmlBackend.Current?.PanelSetCss(id, css);
         public static void Hiccup_PanelSetSize(int id, int w, int h) => HtmlBackend.Current?.PanelSetSize(id, w, h);

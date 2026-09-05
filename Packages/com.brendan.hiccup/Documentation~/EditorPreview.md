@@ -107,6 +107,13 @@ visibility, the set of listened event types, and `Page.startScreencast`. The bac
 panel state, so there is nothing to race — whatever the main thread changed while Chrome was starting is what
 gets sent.
 
+Panel-level state is buffered that way, but element operations are not: a write queued through `BeginOp`
+before the panel is ready is dropped, and a read returns nothing. In a web build the DOM exists the moment the
+panel does, so user code that fills a document from `HtmlDocument.Created` never meets that gap. To give it the
+same contract here, `IHtmlBackend.PanelIsReady` reports the flip, and `HtmlDocument` holds `IsCreated` and the
+`Created` event back until it does (polled from `AfterBridgeUpdate`). A panel whose page failed to set up, or a
+backend that failed altogether, reports ready anyway so the scene wires up as it would with no preview at all.
+
 ## The frame pipeline
 
 This is the part that replaces HTML-in-Canvas.

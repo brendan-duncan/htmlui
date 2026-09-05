@@ -26,6 +26,13 @@ namespace Hiccup
 
         int PanelCreate(int width, int height);
         void PanelDestroy(int panel);
+        /// <summary>
+        /// True once the panel's page exists and element reads and writes reach it. A backend that brings its page
+        /// up asynchronously returns false until then; <see cref="HtmlDocument"/> holds <c>IsCreated</c> and the
+        /// <c>Created</c> event back until this flips, so user code sees the same contract as in a web build.
+        /// Return true for a panel that will never become ready (the backend failed) so documents still wire up.
+        /// </summary>
+        bool PanelIsReady(int panel);
         void PanelSetHtml(int panel, string html);
         void PanelSetCss(int panel, string css);
         void PanelSetSize(int panel, int width, int height);

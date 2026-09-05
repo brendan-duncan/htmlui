@@ -54,7 +54,8 @@ namespace Hiccup
         [SerializeField] private bool createOnEnable = true;
 
         private int _panel;
-        private bool _created;
+        private bool _created;   // the bridge-side panel exists
+        private bool _ready;     // ...and its page accepts reads and writes (see Created)
         private Texture _texture;
         // False when the texture belongs to an IHtmlBackend (Editor preview) and must not be destroyed here.
         private bool _ownsTexture = true;
@@ -71,12 +72,17 @@ namespace Hiccup
         public event Action<HtmlEvent> EventReceived;
         /// <summary>Raised when <see cref="Texture"/> is (re)created, e.g. after a resize.</summary>
         public event Action<HtmlDocument> TextureChanged;
-        /// <summary>Raised after the browser-side panel exists and the content has been loaded.</summary>
+        /// <summary>
+        /// Raised once the browser-side panel exists and element reads and writes reach it. In a web build that is
+        /// inside <see cref="Create"/>; the Editor preview raises it a few frames later, once Chrome has loaded the
+        /// page, so anything written before then would otherwise be lost.
+        /// </summary>
         public event Action<HtmlDocument> Created;
 
         // ------------------------------------------------------------------ state
 
-        public bool IsCreated => _created;
+        /// <summary>True once <see cref="Created"/> has been raised: the panel exists and can be read and written.</summary>
+        public bool IsCreated => _created && _ready;
         internal int PanelId => _panel;
         public HtmlRuntime Runtime => HtmlRuntime.Instance;
         public HtmlRenderMode RenderMode => HtmlRuntime.HasInstance ? HtmlRuntime.Instance.Mode : HtmlRenderMode.Unavailable;
@@ -197,7 +203,16 @@ namespace Hiccup
             SetHtml(html != null ? html.text : string.Empty);
             CreateTexture();
 
-            Created?.Invoke(this);
+            // The jslib's DOM exists at once. A backend that starts a browser reports ready later, and
+            // AfterBridgeUpdate raises Created when it does; until then IsCreated stays false.
+            if (HtmlNative.Hiccup_PanelIsReady(_panel) != 0) RaiseCreated();
+        }
+
+        private void RaiseCreated()
+        {
+            _ready = true;
+            try { Created?.Invoke(this); }
+            catch (Exception ex) { Debug.LogException(ex, this); }
         }
 
         /// <summary>Removes the panel from the page and releases the texture.</summary>
@@ -208,6 +223,7 @@ namespace Hiccup
             HtmlNative.Hiccup_PanelDestroy(_panel);
             if (HtmlRuntime.HasInstance) HtmlRuntime.Instance.Unregister(_panel);
             _created = false;
+            _ready = false;
             _panel = 0;
         }
 
@@ -466,6 +482,10 @@ namespace Hiccup
         internal void AfterBridgeUpdate()
         {
             if (!_created) return;
+
+            // A backend that brings its page up asynchronously (the Editor preview) becomes ready some frames
+            // after Create(); this is where the deferred Created fires, so wiring code sees a working page.
+            if (!_ready && HtmlNative.Hiccup_PanelIsReady(_panel) != 0) RaiseCreated();
 
             var backend = HtmlBackend.Current;
             if (backend != null)

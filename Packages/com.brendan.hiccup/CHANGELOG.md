@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+- Editor preview: content written from `HtmlDocument.Created` was lost. `Created` fired synchronously inside
+  `Create()` while Chrome was still starting, and the CDP backend drops element writes, `Eval` and `Announce`
+  until its page is ready, so anything a controller built at wire-up time (the Full UI Sample's inventory grid,
+  status text, HUD) never appeared. `IHtmlBackend` gains `PanelIsReady`; `HtmlDocument` now holds `IsCreated`
+  and `Created` until the backend reports it, which in a web build is still inside `Create()`.
+
 ### Changed
 - The samples are no longer shipped inside the package. They live only under `Assets/Samples/Hiccup` in the
   Hiccup project, and `package.json` no longer lists them for the Package Manager.

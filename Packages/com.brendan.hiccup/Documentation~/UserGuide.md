@@ -161,7 +161,9 @@ Two rules fall out of this, and they apply to every script you write against a d
   them when the panel is created, so `OnEnable` or `Awake` are both fine.
 * **Touch elements only after `IsCreated`.** Before that, `Q` returns a no-op handle and `Eval` returns an empty
   string, silently. Subscribe to `Created` for initial state, as above; the sample's controllers use the same
-  `IsCreated ? Wire : Created += Wire` shape.
+  `IsCreated ? Wire : Created += Wire` shape. In a web build `Created` fires inside `Create()`; in the Editor
+  preview it fires a few frames later, once Chrome has loaded the page, and `IsCreated` stays false until then.
+  Code that follows the shape above works the same in both.
 
 ### 4. Run it
 
